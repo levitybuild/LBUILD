@@ -84,14 +84,33 @@ export interface CompileResult {
   logs: string[];
 }
 
+function resolveTool(name: string, candidates: string[]): string {
+  const configured = process.env[`LARP_${name.toUpperCase()}_PATH`];
+  if (configured && fs.existsSync(configured)) return configured;
+  const found = candidates.find((candidate) => fs.existsSync(candidate));
+  if (found) return found;
+  throw new Error(
+    `Android build toolchain is unavailable: ${name} was not found. ` +
+    `Configure LARP_${name.toUpperCase()}_PATH or run this API on a builder image containing the Android SDK.`
+  );
+}
+
+function getAndroidToolchain() {
+  return {
+    aapt: resolveTool('aapt', ['/usr/bin/aapt', '/opt/android-sdk/build-tools/34.0.0/aapt']),
+    apksigner: resolveTool('apksigner', ['/usr/bin/apksigner', '/opt/android-sdk/build-tools/34.0.0/apksigner']),
+    zipalign: resolveTool('zipalign', ['/usr/bin/zipalign', '/opt/android-sdk/build-tools/34.0.0/zipalign']),
+    dx: resolveTool('dx', ['/usr/bin/dx', '/usr/bin/dalvik-exchange', '/opt/android-sdk/build-tools/34.0.0/dx']),
+    javac: resolveTool('javac', ['/usr/bin/javac']),
+    keytool: resolveTool('keytool', ['/usr/bin/keytool']),
+    androidJar: process.env.LARP_ANDROID_JAR_PATH || '/usr/lib/android-sdk/platforms/android-23/android.jar',
+  };
+}
+
 function ensureAndroidToolchain(): void {
-  if (!fs.existsSync('/usr/bin/aapt') || !fs.existsSync('/usr/bin/dx') || !fs.existsSync('/usr/lib/android-sdk/platforms/android-23/android.jar')) {
-    try {
-      execSync('DEBIAN_FRONTEND=noninteractive apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends aapt apksigner zipalign dalvik-exchange default-jdk-headless android-framework-res libandroid-23-java -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"', { stdio: 'pipe' });
-      execSync('ln -sf /usr/bin/dalvik-exchange /usr/bin/dx', { stdio: 'pipe' });
-    } catch (e) {
-      console.warn('Toolchain setup notice:', e);
-    }
+  const tools = getAndroidToolchain();
+  if (!fs.existsSync(tools.androidJar)) {
+    throw new Error(`Android platform android.jar was not found at ${tools.androidJar}. Configure LARP_ANDROID_JAR_PATH on the native builder.`);
   }
 }
 
@@ -101,6 +120,7 @@ export async function compileGenuineAndroidApk(
   buildId: string
 ): Promise<CompileResult> {
   ensureAndroidToolchain();
+  const toolchain = getAndroidToolchain();
   const logs: string[] = [];
   const workDir = path.join('/tmp', 'larp_builds', buildId);
   fs.mkdirSync(workDir, { recursive: true });
@@ -503,10 +523,10 @@ public class MainActivity extends Activity {
   fs.writeFileSync(path.join(srcDir, 'MainActivity.java'), mainActivityJava);
 
   // 6. AAPT package R.java
-  const androidJar = '/usr/lib/android-sdk/platforms/android-23/android.jar';
+  const androidJar = toolchain.androidJar;
   logs.push(`[Native Compiler] Generating R.java with aapt (minSdk: 21, targetSdk: 34)...`);
   execSync(
-    `aapt package -m -J "${genDir}" -M "${path.join(workDir, 'AndroidManifest.xml')}" -S "${resDir}" -I "${androidJar}" --min-sdk-version 21 --target-sdk-version 34`,
+    `${toolchain.aapt} package -m -J "${genDir}" -M "${path.join(workDir, 'AndroidManifest.xml')}" -S "${resDir}" -I "${androidJar}" --min-sdk-version 21 --target-sdk-version 34`,
     { stdio: 'pipe' }
   );
 
@@ -514,28 +534,28 @@ public class MainActivity extends Activity {
   logs.push(`[Native Compiler] Compiling Java classes with javac (Java 8 bytecode target)...`);
   const rJavaPath = path.join(genDir, ...config.appId.split('.'), 'R.java');
   const mainJavaPath = path.join(srcDir, 'MainActivity.java');
-  execSync(`javac -cp "${androidJar}" -d "${binDir}" -source 8 -target 8 "${rJavaPath}" "${mainJavaPath}"`, { stdio: 'pipe' });
+  execSync(`"${toolchain.javac}" -cp "${androidJar}" -d "${binDir}" -source 8 -target 8 "${rJavaPath}" "${mainJavaPath}"`, { stdio: 'pipe' });
 
   // 8. Compile Dalvik classes.dex with dx
   logs.push(`[Native Compiler] Compiling Dalvik bytecode (classes.dex) with dx...`);
   const classesDexPath = path.join(workDir, 'classes.dex');
-  execSync(`dx --dex --output="${classesDexPath}" "${binDir}"`, { stdio: 'pipe' });
+  execSync(`"${toolchain.dx}" --dex --output="${classesDexPath}" "${binDir}"`, { stdio: 'pipe' });
 
   // 9. Package unaligned APK with aapt
   logs.push(`[Native Compiler] Packaging binary Android XML & assets with aapt (minSdk: 21, targetSdk: 34)...`);
   const unsignedApkPath = path.join(workDir, 'unsigned.apk');
   execSync(
-    `aapt package -f -M "${path.join(workDir, 'AndroidManifest.xml')}" -S "${resDir}" -A "${path.join(workDir, 'assets')}" -I "${androidJar}" --min-sdk-version 21 --target-sdk-version 34 -F "${unsignedApkPath}"`,
+    `${toolchain.aapt} package -f -M "${path.join(workDir, 'AndroidManifest.xml')}" -S "${resDir}" -A "${path.join(workDir, 'assets')}" -I "${androidJar}" --min-sdk-version 21 --target-sdk-version 34 -F "${unsignedApkPath}"`,
     { stdio: 'pipe' }
   );
 
   // Add classes.dex into root of APK
-  execSync(`cd "${workDir}" && aapt add unsigned.apk classes.dex`, { stdio: 'pipe' });
+  execSync(`cd "${workDir}" && "${toolchain.aapt}" add unsigned.apk classes.dex`, { stdio: 'pipe' });
 
   // 10. Zipalign APK (4-byte alignment mandatory for Android OS parsing)
   logs.push(`[Native Compiler] Aligning APK with zipalign (4-byte page boundaries)...`);
   const alignedApkPath = path.join(workDir, 'aligned.apk');
-  execSync(`zipalign -f -p 4 "${unsignedApkPath}" "${alignedApkPath}"`, { stdio: 'pipe' });
+  execSync(`"${toolchain.zipalign}" -f -p 4 "${unsignedApkPath}" "${alignedApkPath}"`, { stdio: 'pipe' });
 
   // 11. Generate production keystore with keytool
   const keystorePath = path.join(workDir, 'release.keystore');
@@ -543,7 +563,7 @@ public class MainActivity extends Activity {
   const password = config.signing?.password || 'larp_keystore_password_2026';
   logs.push(`[Native Compiler] Generating RSA-2048 signing keystore with keytool...`);
   execSync(
-    `keytool -genkeypair -v -keystore "${keystorePath}" -alias "${alias}" -keyalg RSA -keysize 2048 -validity 9125 -storepass "${password}" -keypass "${password}" -dname "CN=${config.name.replace(/"/g, '')}, OU=LARP, O=LARP Engineering, L=London, ST=Greater London, C=GB"`,
+    `"${toolchain.keytool}" -genkeypair -v -keystore "${keystorePath}" -alias "${alias}" -keyalg RSA -keysize 2048 -validity 9125 -storepass "${password}" -keypass "${password}" -dname "CN=${config.name.replace(/"/g, '')}, OU=LARP, O=LARP Engineering, L=London, ST=Greater London, C=GB"`,
     { stdio: 'pipe' }
   );
 
@@ -551,16 +571,16 @@ public class MainActivity extends Activity {
   logs.push(`[Native Compiler] Signing APK with apksigner (v1 + v2 + v3 schemes)...`);
   const signedApkPath = path.join(workDir, 'signed.apk');
   execSync(
-    `apksigner sign --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --ks "${keystorePath}" --ks-pass "pass:${password}" --ks-key-alias "${alias}" --out "${signedApkPath}" "${alignedApkPath}"`,
+    `"${toolchain.apksigner}" sign --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --ks "${keystorePath}" --ks-pass "pass:${password}" --ks-key-alias "${alias}" --out "${signedApkPath}" "${alignedApkPath}"`,
     { stdio: 'pipe' }
   );
 
   // 13. Verify APK with apksigner
-  const verifyOutput = execSync(`apksigner verify --verbose "${signedApkPath}"`, { encoding: 'utf8' });
+  const verifyOutput = execSync(`"${toolchain.apksigner}" verify --verbose "${signedApkPath}"`, { encoding: 'utf8' });
   logs.push(`[Native Compiler] APK signature verified: ${verifyOutput.trim().replace(/\n/g, ' ')}`);
 
   // 14. Extract fingerprints with keytool
-  const certInfo = execSync(`keytool -list -v -keystore "${keystorePath}" -storepass "${password}"`, { encoding: 'utf8' });
+  const certInfo = execSync(`"${toolchain.keytool}" -list -v -keystore "${keystorePath}" -storepass "${password}"`, { encoding: 'utf8' });
   const sha256Match = certInfo.match(/SHA256:\s*([A-F0-9:]+)/i);
   const sha1Match = certInfo.match(/SHA1:\s*([A-F0-9:]+)/i);
   const sha256Fingerprint = sha256Match ? sha256Match[1] : '4C:91:E2:B0:81:4A:9F:77:3B:18:65:C2:5E:AA:91:02';
