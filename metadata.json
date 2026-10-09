@@ -1,0 +1,6 @@
+{
+  "name": "LARP - Offline Web-to-Native App Bundler API",
+  "description": "Capacitor-powered bundler API and console that packages static HTML/CSS/JS into native Android APKs, Play Store AABs, and iOS packages with true fullscreen, dynamic theme-color syncing, splash screens, and Duolingo-style dynamic app icon swapping.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
