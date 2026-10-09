@@ -1,10 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { buildLarpApp } from '@/lib/larp/generator';
 import { LarpBuildConfig } from '@/lib/larp/types';
+import { isSafeFileList, isValidRequestSize, jsonWithCors, optionsResponse, rejectRequest } from '@/lib/api/cors';
+
+export const runtime = 'nodejs';
+export const maxDuration = 300;
+
+export function OPTIONS() {
+  return optionsResponse();
+}
 
 export async function POST(req: NextRequest) {
+  if (!isValidRequestSize(req)) return rejectRequest('Request body exceeds the 10 MB limit.', 413);
   try {
     const body = await req.json();
+
+    if (!isSafeFileList(body.staticBundle?.files)) {
+      return rejectRequest('staticBundle.files must contain valid files (maximum 500 files, 5 MB each).', 400);
+    }
 
     const config: LarpBuildConfig = {
       appId: body.appId || 'com.larp.app',
@@ -52,10 +65,10 @@ export async function POST(req: NextRequest) {
     };
 
     const result = await buildLarpApp(config);
-    return NextResponse.json(result);
+    return jsonWithCors(result);
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     console.error('[API /api/larp/build] Build error:', err);
-    return NextResponse.json({ error: errorMsg, success: false }, { status: 500 });
+    return jsonWithCors({ error: errorMsg, success: false }, { status: 500 });
   }
 }

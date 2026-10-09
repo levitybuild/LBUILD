@@ -113,7 +113,7 @@ LarpBridge.hideSplashScreen();`;
             LARP REST API & Bridge Client SDK
           </h2>
           <p className="mt-2 text-sm text-[#6B6661] leading-relaxed">
-            Integrate one-click native app compilation directly into your static code editor or build pipeline.
+            Integrate one-click native app compilation directly into your static code editor or build pipeline. Live machine-readable docs: <code className="font-mono text-[#D97757]">/api/docs</code>.
           </p>
         </div>
 
