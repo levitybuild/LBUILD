@@ -1,0 +1,8 @@
+# LARP repository build contract. The API reads this file from a selected GitHub repository.
+name: LARP GitHub App
+appId: com.larp.githubapp
+version: 1.0.0
+versionCode: 1
+themeColor: '#D97757'
+fullscreen: false
+content: content/index.html
