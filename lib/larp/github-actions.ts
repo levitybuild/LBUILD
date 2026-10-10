@@ -323,26 +323,40 @@ jobs:
           }
           EOF
 
-          # 5. Compile R.java & APK using aapt, javac, dx, zipalign, apksigner
-          ANDROID_JAR="/usr/lib/android-sdk/platforms/android-23/android.jar"
-          if [ ! -f "$ANDROID_JAR" ]; then
-            ANDROID_JAR=$(find /usr -name "android.jar" 2>/dev/null | head -n 1)
-          fi
+          # 5. Compile R.java & APK using the tools installed by setup-android.
+          # Never assume /usr/lib/android-sdk or the removed legacy dx command exists.
+          SDK_ROOT="\${ANDROID_HOME:-\${ANDROID_SDK_ROOT:-$HOME/.android/sdk}}"
+          BUILD_TOOLS_DIR="$SDK_ROOT/build-tools/34.0.0"
+          PLATFORM_DIR="$SDK_ROOT/platforms/android-34"
+          AAPT="$BUILD_TOOLS_DIR/aapt"
+          D8="$BUILD_TOOLS_DIR/d8"
+          ZIPALIGN="$BUILD_TOOLS_DIR/zipalign"
+          APKSIGNER="$BUILD_TOOLS_DIR/apksigner"
+          ANDROID_JAR="$PLATFORM_DIR/android.jar"
 
-          echo "Using android.jar: $ANDROID_JAR"
+          for tool in "$AAPT" "$D8" "$ZIPALIGN" "$APKSIGNER" "$ANDROID_JAR"; do
+            if [ ! -e "$tool" ]; then
+              echo "Missing Android build tool: $tool"
+              exit 1
+            fi
+          done
 
-          aapt package -m -J "$GEN_DIR" -M "$WORK_DIR/AndroidManifest.xml" -S "$RES_DIR" -I "$ANDROID_JAR" --min-sdk-version 21 --target-sdk-version 34
+          echo "Using Android SDK: $SDK_ROOT"
+          echo "Using build tools: $BUILD_TOOLS_DIR"
+
+          "$AAPT" package -m -J "$GEN_DIR" -M "$WORK_DIR/AndroidManifest.xml" -S "$RES_DIR" -I "$ANDROID_JAR" --min-sdk-version 21 --target-sdk-version 34
           javac -cp "$ANDROID_JAR" -d "$BIN_DIR" -source 8 -target 8 "$GEN_DIR/${pkgPath}/R.java" "$SRC_DIR/MainActivity.java"
-          dx --dex --output="$WORK_DIR/classes.dex" "$BIN_DIR"
+          "$D8" --min-api 21 --output "$WORK_DIR/dex" "$BIN_DIR"
+          cp "$WORK_DIR/dex/classes.dex" "$WORK_DIR/classes.dex"
 
-          aapt package -f -M "$WORK_DIR/AndroidManifest.xml" -S "$RES_DIR" -A "$ASSETS_DIR" -I "$ANDROID_JAR" --min-sdk-version 21 --target-sdk-version 34 -F "$WORK_DIR/unsigned.apk"
-          (cd "$WORK_DIR" && aapt add unsigned.apk classes.dex)
+          "$AAPT" package -f -M "$WORK_DIR/AndroidManifest.xml" -S "$RES_DIR" -A "$ASSETS_DIR" -I "$ANDROID_JAR" --min-sdk-version 21 --target-sdk-version 34 -F "$WORK_DIR/unsigned.apk"
+          (cd "$WORK_DIR" && "$AAPT" add unsigned.apk classes.dex)
 
-          zipalign -f -p 4 "$WORK_DIR/unsigned.apk" "$WORK_DIR/aligned.apk"
+          "$ZIPALIGN" -f -p 4 "$WORK_DIR/unsigned.apk" "$WORK_DIR/aligned.apk"
 
           keytool -genkeypair -v -keystore release.keystore -alias larp_release -keyalg RSA -keysize 2048 -validity 9125 -storepass larp_keystore_password_2026 -keypass larp_keystore_password_2026 -dname "CN=${appName}, OU=LARP, O=LARP Engineering, C=US"
 
-          apksigner sign --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --ks release.keystore --ks-pass pass:larp_keystore_password_2026 --ks-key-alias larp_release --out signed_release.apk "$WORK_DIR/aligned.apk"
+          "$APKSIGNER" sign --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --ks release.keystore --ks-pass pass:larp_keystore_password_2026 --ks-key-alias larp_release --out signed_release.apk "$WORK_DIR/aligned.apk"
 
           mkdir -p build_output
           cp signed_release.apk build_output/${safeName}_signed_release.apk
