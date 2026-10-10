@@ -32,8 +32,7 @@ export function ApiReferenceSection() {
       "autoHide": true
     },
     "iconVariants": [
-      { "id": "default", "name": "Classic", "isDefault": true, "glyph": "🦉", "backgroundColor": "#D97757", "foregroundColor": "#FFFFFF" },
-      { "id": "streak_fire", "name": "Fire Streak", "isDefault": false, "glyph": "🔥", "backgroundColor": "#EA580C", "foregroundColor": "#FFFFFF" }
+      { "id": "default", "name": "My launcher icon", "isDefault": true, "imageData": "data:image/png;base64,<YOUR_BASE64_IMAGE>", "imageMimeType": "image/png", "backgroundColor": "#D97757", "foregroundColor": "#FFFFFF" }
     ],
     "staticBundle": {
       "entrypoint": "index.html",
@@ -64,8 +63,7 @@ name: 'My Configurable App',
       repoId: 'larp-android-app-v6',
       splashScreen: { type: 'flat_color', backgroundColor: '#FAF8F5', duration: 2000, autoHide: true },
       iconVariants: [
-        { id: 'default', name: 'Default Hero', isDefault: true, glyph: '⚽', backgroundColor: '#D97757', foregroundColor: '#FFF' },
-        { id: 'golden', name: 'Golden Champion', isDefault: false, glyph: '🏆', backgroundColor: '#CA8A04', foregroundColor: '#FFF' }
+        { id: 'default', name: 'My launcher icon', isDefault: true, imageData: 'data:image/png;base64,<YOUR_BASE64_IMAGE>', imageMimeType: 'image/png', backgroundColor: '#D97757', foregroundColor: '#FFF' }
       ],
       staticBundle: {
         entrypoint: 'index.html',

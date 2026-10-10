@@ -103,7 +103,11 @@ export function DeviceSimulator({
   const activeIcon = iconVariants.find(v => v.id === activeIconId) || iconVariants[0];
   const iconContent = activeIcon?.imageData ? (
     <img src={activeIcon.imageData} alt={`${activeIcon.name} app icon`} className="w-full h-full rounded-[inherit] object-cover" />
-  ) : (activeIcon?.glyph || 'L');
+  ) : (
+    <span className="flex h-full w-full items-center justify-center rounded-[inherit] border border-dashed border-[#D8D2C9] bg-[#FAF8F5] px-2 text-center text-[9px] font-medium leading-tight text-[#8C867D]">
+      Upload an icon
+    </span>
+  );
 
   const triggerReplaySplash = () => {
     setShowSplash(true);

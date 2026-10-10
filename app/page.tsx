@@ -27,35 +27,12 @@ export default function HomePage() {
     iconVariants: [
       {
         id: 'default',
-        name: 'Classic Hero',
+        name: 'Default icon',
         isDefault: true,
-        glyph: '🦉',
+        glyph: '',
         backgroundColor: '#D97757',
         foregroundColor: '#FFFFFF',
-      },
-      {
-        id: 'streak_fire',
-        name: 'Fire Streak',
-        isDefault: false,
-        glyph: '🔥',
-        backgroundColor: '#EA580C',
-        foregroundColor: '#FFFFFF',
-      },
-      {
-        id: 'stealth_dark',
-        name: 'Stealth Pro',
-        isDefault: false,
-        glyph: '⚡',
-        backgroundColor: '#18181B',
-        foregroundColor: '#FACC15',
-      },
-      {
-        id: 'golden_master',
-        name: 'Golden Champion',
-        isDefault: false,
-        glyph: '🏆',
-        backgroundColor: '#CA8A04',
-        foregroundColor: '#FFFFFF',
+        description: 'Upload an image to use as the launcher icon.',
       },
     ] as IconVariant[],
   });
