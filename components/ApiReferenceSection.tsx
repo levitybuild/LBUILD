@@ -13,7 +13,7 @@ export function ApiReferenceSection() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const curlExample = `curl -X POST https://your-app-domain.com/api/larp/build \\
+  const curlExample = `curl -X POST ${typeof window !== 'undefined' ? window.location.origin : 'https://your-app-domain.com'}/api/larp/build \\
   -H "Content-Type: application/json" \\
   -d '{
     "name": "StreakHero",
@@ -44,9 +44,12 @@ export function ApiReferenceSection() {
     }
   }'`;
 
-  const fetchExample = `// Trigger build and immediately retrieve APK download URL
+  const fetchExample = `// The endpoint follows the page origin, so this works on any deployment.
+const LARP_API_ORIGIN = window.location.origin;
+
+// Trigger build and immediately retrieve APK download URL
 async function buildMyAndroidApp() {
-  const response = await fetch('/api/larp/build', {
+  const response = await fetch(LARP_API_ORIGIN + '/api/larp/build', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
