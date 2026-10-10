@@ -1,4 +1,8 @@
+import fs from 'fs';
+import path from 'path';
+
 const downloads = new Map<string, { body: Buffer; contentType: string; createdAt: number }>();
+const downloadsDir = path.join(process.cwd(), 'public', 'downloads');
 
 const MAX_DOWNLOADS = 100;
 const MAX_AGE_MS = 60 * 60 * 1000;
@@ -22,5 +26,20 @@ export function saveBuildDownload(filename: string, body: Buffer, contentType: s
 
 export function getBuildDownload(filename: string) {
   prune();
-  return downloads.get(filename);
+  const memoryEntry = downloads.get(filename);
+  if (memoryEntry) return memoryEntry;
+
+  // Serverless instances do not share module memory. Fall back to the build
+  // output written by the current deployment so a fresh download invocation works.
+  const filePath = path.join(downloadsDir, filename);
+  if (!fs.existsSync(filePath)) return undefined;
+  const body = fs.readFileSync(filePath);
+  const contentType = filename.endsWith('.apk')
+    ? 'application/vnd.android.package-archive'
+    : filename.endsWith('.zip')
+      ? 'application/zip'
+      : filename.endsWith('.aab')
+        ? 'application/octet-stream'
+        : 'application/octet-stream';
+  return { body, contentType, createdAt: Date.now() };
 }

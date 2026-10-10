@@ -18,6 +18,8 @@ export interface GithubBridgeResult {
   success: boolean;
   apkFilename: string;
   downloadUrl: string;
+  zipDownloadUrl?: string;
+  zipFilename?: string;
   githubRunUrl?: string;
   githubRepoUrl?: string;
   githubArtifactId?: number;
@@ -199,7 +201,9 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
 
               if (downloadRes.ok) {
                 const zipBuffer = Buffer.from(await downloadRes.arrayBuffer());
-                logs.push(`[GitHub Bridge Middleman] Downloaded ${zipBuffer.length} bytes from GitHub.`);
+                fs.writeFileSync(path.join(publicDownloadsDir, zipFilename), zipBuffer);
+                saveBuildDownload(zipFilename, zipBuffer, 'application/zip');
+                logs.push(`[GitHub Bridge Middleman] Downloaded ${zipBuffer.length} bytes from GitHub and saved the complete artifact ZIP.`);
 
                 const zip = await JSZip.loadAsync(zipBuffer);
                 const apkPath = Object.keys(zip.files).find(k => k.toLowerCase().endsWith('.apk'));
@@ -238,6 +242,8 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
     success: true,
     apkFilename,
     downloadUrl: `/api/larp/download?file=${encodeURIComponent(apkFilename)}`,
+    zipDownloadUrl: `/api/larp/download?file=${encodeURIComponent(zipFilename)}`,
+    zipFilename,
     githubRunUrl: runUrl || `https://github.com/${username}/${repoName}/actions`,
     githubRepoUrl: repoUrl,
     githubArtifactId,

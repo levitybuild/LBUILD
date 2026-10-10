@@ -98,6 +98,8 @@ export async function POST(req: NextRequest) {
           artifactSizeBytes: ghResult.githubArtifactSize,
           apkFilename: ghResult.apkFilename,
           downloadUrl: ghResult.downloadUrl,
+          zipFilename: ghResult.zipFilename,
+          zipDownloadUrl: ghResult.zipDownloadUrl,
         };
       } catch (ghErr: any) {
         logs.push(`[LARP API Notice] GitHub Actions sync warning: ${ghErr.message}`);

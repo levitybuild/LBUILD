@@ -11,62 +11,7 @@ import { SAMPLE_TEMPLATES } from '@/lib/larp/sample-templates';
 import { GeneratedArtifact, LarpBuildResult, IconVariant } from '@/lib/larp/types';
 import { ArrowRight, Sparkles, Smartphone, ShieldCheck, Download, Code, Maximize2 } from 'lucide-react';
 
-const INITIAL_ARTIFACTS: GeneratedArtifact[] = [
-  {
-    id: 'apk',
-    name: 'Signed Release APK',
-    filename: 'streakhero__duolingo_style__signed_release.apk',
-    type: 'apk',
-    sizeBytes: 15447,
-    downloadUrl: '/downloads/streakhero__duolingo_style__signed_release.apk',
-    description: 'Production-signed APK ready to test on Android devices or install via ADB.',
-  },
-  {
-    id: 'aab',
-    name: 'Google Play Bundle (AAB)',
-    filename: 'streakhero__duolingo_style__production_playstore.aab',
-    type: 'aab',
-    sizeBytes: 12796,
-    downloadUrl: '/downloads/streakhero__duolingo_style__production_playstore.aab',
-    description: 'Optimized Android App Bundle formatted for Google Play Store production release.',
-  },
-  {
-    id: 'keystore',
-    name: 'Production Keystore',
-    filename: 'larp_release.keystore',
-    type: 'keystore',
-    sizeBytes: 2285,
-    downloadUrl: '/downloads/larp_release.keystore',
-    description: 'RSA-2048 signing certificate & private key valid for 25 years with SHA-256 fingerprint.',
-  },
-  {
-    id: 'source_zip',
-    name: 'Full Capacitor 6 Project',
-    filename: 'streakhero__duolingo_style__capacitor_project.zip',
-    type: 'source_zip',
-    sizeBytes: 11854,
-    downloadUrl: '/downloads/streakhero__duolingo_style__capacitor_project.zip',
-    description: 'Complete Capacitor project with pre-configured Android & iOS targets and plugin bindings.',
-  },
-  {
-    id: 'bridge_js',
-    name: 'LARP Runtime Bridge SDK',
-    filename: 'larp-bridge.js',
-    type: 'bridge_js',
-    sizeBytes: 9396,
-    downloadUrl: '/downloads/larp-bridge.js',
-    description: 'Client-side bridge connecting your static web DOM to native status bar, icons, and haptics.',
-  },
-  {
-    id: 'release_info',
-    name: 'Play Store Release Credentials',
-    filename: 'release_info.json',
-    type: 'manifest',
-    sizeBytes: 1144,
-    downloadUrl: '/downloads/release_info.json',
-    description: 'Cryptographic fingerprints and credentials for Google Play Console and App Store Connect.',
-  },
-];
+const INITIAL_ARTIFACTS: GeneratedArtifact[] = []; /* populated only by a completed build */
 
 export default function HomePage() {
   const [artifacts, setArtifacts] = useState<GeneratedArtifact[]>(INITIAL_ARTIFACTS);
@@ -132,9 +77,13 @@ export default function HomePage() {
   };
 
   const handleBuildComplete = (result: LarpBuildResult) => {
-    if (result.artifacts && result.artifacts.length > 0) {
-      setArtifacts(result.artifacts);
-    }
+  if (result.artifacts && result.artifacts.length > 0) {
+      const archive = result.zipDownloadUrl && result.zipFilename ? [{
+        id: 'complete-zip', name: 'Complete build archive', filename: result.zipFilename, type: 'source_zip' as const,
+        sizeBytes: 0, downloadUrl: result.zipDownloadUrl, description: 'All generated build files from this run, including the APK/AAB and signing outputs.'
+      }] : [];
+      setArtifacts([...result.artifacts, ...archive]);
+  }
     if (result.signingInfo) {
       setSigningInfo({
         sha256Fingerprint: result.signingInfo.sha256Fingerprint,

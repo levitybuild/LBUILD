@@ -110,6 +110,8 @@ export interface LarpBuildResult {
   logs: string[];
   downloadUrl?: string;
   apkFilename?: string;
+  zipDownloadUrl?: string;
+  zipFilename?: string;
   githubBridge?: {
     downloadUrl?: string;
     apkFilename?: string;
