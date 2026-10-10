@@ -28,7 +28,8 @@ export interface StaticFile {
 
 export interface StaticBundleInput {
   entrypoint?: string; // default: 'index.html'
-  files: StaticFile[];
+  files?: StaticFile[];
+  zipBase64?: string; // Base64-encoded zip bundle containing multi-file project
 }
 
 export interface LarpPluginConfig {
@@ -65,6 +66,13 @@ export interface LarpBuildConfig {
   plugins: LarpPluginConfig;
   signing: SigningConfig;
   staticBundle: StaticBundleInput;
+  zipBase64?: string; // Optional Base64 zip bundle
+  keepAwake?: boolean; // Prevent screen from dimming/sleeping (FLAG_KEEP_SCREEN_ON)
+  username?: string; // GitHub username
+  accessToken?: string; // GitHub access token (PAT)
+  repo?: string; // GitHub target repo name
+  repoId?: string; // GitHub target repo name alias
+  repoName?: string; // GitHub target repo name alias
 }
 
 export interface GeneratedArtifact {

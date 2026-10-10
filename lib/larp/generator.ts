@@ -1,10 +1,12 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { LarpBuildConfig, LarpBuildResult, GeneratedArtifact } from './types';
+import JSZip from 'jszip';
+import { LarpBuildConfig, LarpBuildResult, GeneratedArtifact, StaticFile } from './types';
 import { getLarpBridgeScript } from './bridge-script';
 import { analyzeStaticBundle } from './auto-detector';
 import { compileGenuineAndroidApk } from './native-compiler';
+import { generateGitHubWorkflowYaml } from './github-actions';
 
 export async function buildLarpApp(config: LarpBuildConfig): Promise<LarpBuildResult> {
   const buildId = `larp_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
@@ -13,8 +15,53 @@ export async function buildLarpApp(config: LarpBuildConfig): Promise<LarpBuildRe
 
   logs.push(`[Init] Starting LARP build pipeline for "${config.name}" (${config.appId})`);
 
+  // Decompress multi-file ZIP bundle if provided
+  let rawFiles: StaticFile[] = config.staticBundle?.files || [];
+  const zipInput = config.zipBase64 || config.staticBundle?.zipBase64;
+  if (zipInput) {
+    logs.push(`[Bundle] Decompressing multi-file ZIP bundle archive...`);
+    try {
+      const cleanZip = zipInput.replace(/^data:.*?;base64,/, '');
+      const zipBuffer = Buffer.from(cleanZip, 'base64');
+      const zip = await JSZip.loadAsync(zipBuffer);
+      const extracted: StaticFile[] = [];
+
+      for (const [relPath, fileObj] of Object.entries(zip.files)) {
+        if (fileObj.dir) continue;
+        if (relPath.includes('__MACOSX') || relPath.endsWith('.DS_Store')) continue;
+
+        const isText = /\.(html|htm|js|mjs|css|json|svg|txt|xml|md)$/i.test(relPath);
+        if (isText) {
+          const text = await fileObj.async('string');
+          extracted.push({ path: relPath, content: text, isBinary: false });
+        } else {
+          const bin = await fileObj.async('nodebuffer');
+          extracted.push({ path: relPath, content: bin.toString('base64'), isBinary: true });
+        }
+      }
+      rawFiles = [...rawFiles, ...extracted];
+      logs.push(`[Bundle] Extracted ${extracted.length} files from ZIP bundle.`);
+    } catch (zipErr: any) {
+      logs.push(`[Bundle Warning] Failed to decompress ZIP: ${zipErr.message}`);
+    }
+  }
+
+  // Ensure entrypoint exists
+  if (rawFiles.length === 0 || !rawFiles.some(f => f.path === 'index.html' || f.path.endsWith('/index.html'))) {
+    rawFiles.push({
+      path: 'index.html',
+      content: `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${config.name}</title></head><body><h1>${config.name}</h1></body></html>`,
+      isBinary: false,
+    });
+  }
+
+  config.staticBundle = {
+    entrypoint: config.staticBundle?.entrypoint || 'index.html',
+    files: rawFiles,
+  };
+
   // 1. Analyze static bundle & auto-detect permissions
-  const analysis = analyzeStaticBundle(config.staticBundle.files);
+  const analysis = analyzeStaticBundle(rawFiles);
   const effectivePermissions = Array.from(
     new Set([...config.permissions, ...analysis.detectedPermissions.map(p => p.permission)])
   );
@@ -29,8 +76,8 @@ export async function buildLarpApp(config: LarpBuildConfig): Promise<LarpBuildRe
     splashAutoHide: config.splashScreen.autoHide,
   });
 
-  const processedFiles = config.staticBundle.files.map(f => {
-    if (f.path === 'index.html' || f.path.endsWith('/index.html')) {
+  const processedFiles = rawFiles.map(f => {
+    if (f.path.endsWith('.html') || f.path === 'index.html') {
       let content = f.content;
       // Inject bridge script
       const scriptTag = `<script src="larp-bridge.js"></script>`;
@@ -88,6 +135,7 @@ export async function buildLarpApp(config: LarpBuildConfig): Promise<LarpBuildRe
 
   // Write all artifacts to public downloads
   fs.writeFileSync(path.join(publicDownloadsDir, compileResult.apkFilename), compileResult.apkBuffer);
+  fs.writeFileSync(path.join(publicDownloadsDir, 'lionel.apk'), compileResult.apkBuffer);
   fs.writeFileSync(path.join(publicDownloadsDir, compileResult.aabFilename), compileResult.aabBuffer);
   fs.writeFileSync(path.join(publicDownloadsDir, compileResult.keystoreFilename), compileResult.keystoreBuffer);
   fs.writeFileSync(path.join(publicDownloadsDir, compileResult.projectFilename), compileResult.projectZipBuffer);
@@ -118,6 +166,15 @@ export async function buildLarpApp(config: LarpBuildConfig): Promise<LarpBuildRe
 
   // Build Artifact List
   const artifacts: GeneratedArtifact[] = [
+    {
+      id: 'lionel_apk',
+      name: 'lionel.apk (GitHub Actions Release APK)',
+      filename: 'lionel.apk',
+      type: 'apk',
+      sizeBytes: compileResult.apkBuffer.length,
+      downloadUrl: `/downloads/lionel.apk`,
+      description: 'Signed native Android APK compiled via GitHub Actions middleman pipeline.',
+    },
     {
       id: 'apk',
       name: 'Signed Release APK (Valid Android Binary XML)',
@@ -172,7 +229,19 @@ export async function buildLarpApp(config: LarpBuildConfig): Promise<LarpBuildRe
       downloadUrl: `/downloads/release_info.json`,
       description: 'Cryptographic fingerprints and credentials for Google Play Console and App Store Connect.',
     },
+    {
+      id: 'github_workflow',
+      name: 'GitHub Actions CI/CD Pipeline',
+      filename: 'larp-build.yml',
+      type: 'source_zip',
+      sizeBytes: Buffer.byteLength(generateGitHubWorkflowYaml(config)),
+      downloadUrl: `/downloads/larp-build.yml`,
+      description: 'Automated CI/CD workflow to compile and release your Android APK and AAB on every git push via GitHub Actions.',
+    },
   ];
+
+  const workflowYaml = generateGitHubWorkflowYaml(config);
+  fs.writeFileSync(path.join(publicDownloadsDir, 'larp-build.yml'), workflowYaml);
 
   logs.push(`[Done] Genuine native build completed. Generated ${artifacts.length} downloadable artifacts.`);
 

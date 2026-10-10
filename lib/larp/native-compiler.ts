@@ -97,7 +97,7 @@ function ensureAndroidToolchain(): void {
 
 export async function compileGenuineAndroidApk(
   config: LarpBuildConfig,
-  processedFiles: { path: string; content: string }[],
+  processedFiles: { path: string; content: string; isBinary?: boolean }[],
   buildId: string
 ): Promise<CompileResult> {
   ensureAndroidToolchain();
@@ -122,11 +122,15 @@ export async function compileGenuineAndroidApk(
 
   logs.push(`[Native Compiler] Initialized workspace at ${workDir}`);
 
-  // 1. Write static files to assets/public
+  // 1. Write static files to assets/public (text and binary assets supported)
   for (const file of processedFiles) {
     const targetPath = path.join(assetsPublicDir, file.path);
     fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-    fs.writeFileSync(targetPath, file.content, 'utf8');
+    if (file.isBinary) {
+      fs.writeFileSync(targetPath, Buffer.from(file.content, 'base64'));
+    } else {
+      fs.writeFileSync(targetPath, file.content, 'utf8');
+    }
   }
 
   // 2. Generate PNG launcher icons
@@ -207,6 +211,7 @@ export async function compileGenuineAndroidApk(
     <uses-feature android:name="android.hardware.faketouch" android:required="false" />
 
 ${permissionsXml}
+${config.keepAwake ? '    <uses-permission android:name="android.permission.WAKE_LOCK" />' : ''}
 
     <application
         android:label="${config.name.replace(/&/g, '&amp;')}"
@@ -252,6 +257,7 @@ import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.WebChromeClient;
 import android.widget.FrameLayout;
 import android.graphics.Color;
 import android.content.ComponentName;
@@ -271,6 +277,11 @@ public class MainActivity extends Activity {
 
         // Paint the top status bar with the page theme color immediately (Never black!)
         applyThemeColor(DEFAULT_THEME_COLOR);
+
+        ${config.keepAwake ? `// Stay Awake: keep screen on
+        try {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        } catch(Exception ignored) {}` : ''}
 
         // Layout container
         FrameLayout rootLayout = new FrameLayout(this);
@@ -295,6 +306,9 @@ public class MainActivity extends Activity {
         // Native Bridge Javascript Interface
         webView.addJavascriptInterface(new LarpNativeInterface(), "LarpNative");
 
+        // WebChromeClient enables JavaScript alerts, confirms, console, and interactive DOM features
+        webView.setWebChromeClient(new WebChromeClient());
+
         // Splash screen view matching theme background
         splashView = new View(this);
         splashView.setLayoutParams(new FrameLayout.LayoutParams(
@@ -306,6 +320,14 @@ public class MainActivity extends Activity {
         }
 
         webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                if (url != null && (url.startsWith("file://") || url.startsWith("data:") || url.startsWith("javascript:"))) {
+                    return false; // Load inside WebView for local multi-page navigation
+                }
+                return false;
+            }
+
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
@@ -343,6 +365,20 @@ public class MainActivity extends Activity {
 
         // Load offline bundled web app
         webView.loadUrl("file:///android_asset/public/index.html");
+    }
+
+    /**
+     * Physical & Gesture Back Button Navigation:
+     * If the user navigated across internal pages or history states, go back inside WebView.
+     * Only exit the app if at the root page.
+     */
+    @Override
+    public void onBackPressed() {
+        if (webView != null && webView.canGoBack()) {
+            webView.goBack();
+        } else {
+            super.onBackPressed();
+        }
     }
 
     /**
@@ -414,6 +450,22 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void setFullscreen(final boolean enable) {
             // Handled via theme-color and safe insets to prevent black bars
+        }
+
+        @JavascriptInterface
+        public void setKeepAwake(final boolean enable) {
+            mainHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        if (enable) {
+                            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                        } else {
+                            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                        }
+                    } catch (Exception ignored) {}
+                }
+            });
         }
 
         @JavascriptInterface

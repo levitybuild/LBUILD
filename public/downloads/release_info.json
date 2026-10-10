@@ -1,39 +1,24 @@
 {
-  "appName": "StreakHero (Duolingo Style)",
-  "appId": "com.larp.streakhero",
+  "appName": "MultiFileApp",
+  "appId": "com.lourdjvke.multifile",
   "version": "1.0.0",
-  "versionCode": 101,
-  "buildId": "larp_1791560058519_a51234",
-  "timestamp": "2026-10-09T15:34:18.519Z",
-  "sha256Fingerprint": "CB:99:40:86:A0:DB:60:60:82:4E:F6:75:38:63:01:C1:CB:9F:C2:6C:E2:4A:F3:27:3C:D5:4B:88:7C:6B:F6:F6",
-  "sha1Fingerprint": "3C:EA:54:FA:74:AF:4C:19:7E:FD:EF:12:FF:28:F5:DA:2C:29:60:D2",
+  "versionCode": 102,
+  "buildId": "larp_1791585771270_261b75",
+  "timestamp": "2026-10-09T22:42:51.271Z",
+  "sha256Fingerprint": "49:19:01:53:B4:E0:C9:4E:19:0A:34:73:57:70:A9:FC:80:38:50:D3:76:5C:1A:37:79:E2:29:B7:57:CD:7F:20",
+  "sha1Fingerprint": "0A:BE:90:0B:7B:42:8E:33:E0:B2:A8:87:FE:82:80:E1:D0:EE:0F:27",
   "signingAlias": "larp_release",
   "signingPassword": "larp_keystore_password_2026",
   "validityYears": 25,
   "playStoreReady": true,
   "appStoreReady": true,
   "fullscreenMode": "Standard",
-  "themeColor": "#FAF8F5",
+  "themeColor": "#D97757",
   "dynamicIconVariants": [
     {
       "id": "default",
-      "name": "Classic Hero",
+      "name": "Default",
       "isDefault": true
-    },
-    {
-      "id": "streak_fire",
-      "name": "Fire Streak",
-      "isDefault": false
-    },
-    {
-      "id": "stealth_dark",
-      "name": "Stealth Pro",
-      "isDefault": false
-    },
-    {
-      "id": "golden_master",
-      "name": "Golden Champion",
-      "isDefault": false
     }
   ]
 }

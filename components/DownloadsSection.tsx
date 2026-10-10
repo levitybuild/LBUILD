@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Download, FileCode, Shield, Smartphone, Box, Key, CheckCircle2, Copy, Terminal } from 'lucide-react';
+import { Download, FileCode, Shield, Smartphone, Box, Key, CheckCircle2, Copy, Terminal, GitBranch } from 'lucide-react';
 import { GeneratedArtifact } from '@/lib/larp/types';
 
 interface DownloadsSectionProps {
@@ -143,6 +143,103 @@ export function DownloadsSection({ artifacts, signingInfo }: DownloadsSectionPro
             <p className="text-[11px] text-[#6B6661]">
               Paste this fingerprint into Google Play App Integrity / Firebase Console to authenticate your production builds.
             </p>
+          </div>
+        </div>
+
+        {/* GitHub Actions CI/CD Pipeline Section */}
+        <div className="mt-8 p-6 md:p-8 bg-white border border-[#EAE6E1] rounded-2xl shadow-xs space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#D97757] mb-1">
+                <GitBranch className="w-4 h-4" />
+                <span>Cloud CI/CD Automation</span>
+              </div>
+              <h3 className="text-lg md:text-xl font-bold text-[#1F1E1D]">
+                Build & Sign via GitHub Actions
+              </h3>
+              <p className="text-xs text-[#6B6661] mt-1 max-w-2xl leading-relaxed">
+                Compile your Android APK and AAB automatically on every <code>git push</code> or release tag.
+                GitHub Actions runners (<code>ubuntu-latest</code>) include Android SDK 34, JDK 17, and signing tools out of the box.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => copyText(`name: LARP Android Build & Release
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install
+      - run: npx tsx scripts/generate-demo.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-release-apk
+          path: public/downloads/*.apk`, 'gh_yaml')}
+                className="py-2 px-3.5 bg-[#FAF8F5] hover:bg-[#EAE6E1] border border-[#EAE6E1] rounded-xl text-xs font-semibold text-[#1F1E1D] flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                {copiedId === 'gh_yaml' ? <CheckCircle2 className="w-3.5 h-3.5 text-[#2E7D32]" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedId === 'gh_yaml' ? 'Copied YAML!' : 'Copy Workflow'}</span>
+              </button>
+
+              <a
+                href="/downloads/larp-build.yml"
+                download="larp-build.yml"
+                className="py-2 px-3.5 bg-[#D97757] hover:bg-[#C86646] text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download .github/workflows/larp-build.yml</span>
+              </a>
+            </div>
+          </div>
+
+          {/* Workflow Steps Guide */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-[#FAF8F5]">
+            <div className="p-4 bg-[#FAF8F5] rounded-xl border border-[#EAE6E1] space-y-1.5">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#1F1E1D]">
+                <span className="w-5 h-5 rounded-full bg-[#D97757] text-white text-[10px] flex items-center justify-center font-mono">1</span>
+                <span>Commit Workflow File</span>
+              </div>
+              <p className="text-[11px] text-[#6B6661] leading-relaxed">
+                Save the file to <code>.github/workflows/larp-build.yml</code> in your repository root and push to GitHub.
+              </p>
+            </div>
+
+            <div className="p-4 bg-[#FAF8F5] rounded-xl border border-[#EAE6E1] space-y-1.5">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#1F1E1D]">
+                <span className="w-5 h-5 rounded-full bg-[#D97757] text-white text-[10px] flex items-center justify-center font-mono">2</span>
+                <span>Set Keystore Secret (Optional)</span>
+              </div>
+              <p className="text-[11px] text-[#6B6661] leading-relaxed">
+                Add <code>ANDROID_KEYSTORE_BASE64</code> in Settings → Secrets for automated Google Play signing.
+              </p>
+            </div>
+
+            <div className="p-4 bg-[#FAF8F5] rounded-xl border border-[#EAE6E1] space-y-1.5">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#1F1E1D]">
+                <span className="w-5 h-5 rounded-full bg-[#D97757] text-white text-[10px] flex items-center justify-center font-mono">3</span>
+                <span>Instant APK & AAB Release</span>
+              </div>
+              <p className="text-[11px] text-[#6B6661] leading-relaxed">
+                Every push generates signed release binaries attached directly to GitHub Actions Artifacts and Releases.
+              </p>
+            </div>
           </div>
         </div>
       </div>

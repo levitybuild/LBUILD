@@ -6,7 +6,7 @@
   'use strict';
 
   var isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
-  var currentThemeColor = "#FAF8F5";
+  var currentThemeColor = "#D97757";
   var currentIcon = "default";
   var isFullscreen = false;
 

@@ -173,6 +173,23 @@ export function getLarpBridgeScript(config: {
     },
 
     /**
+     * Prevent screen from dimming/sleeping (Stay Awake)
+     * @param {boolean} enable - true to keep screen awake, false to allow sleep
+     */
+    setKeepAwake: function(enable) {
+      var awake = !!enable;
+      if (window.LarpNative && typeof window.LarpNative.setKeepAwake === 'function') {
+        try {
+          window.LarpNative.setKeepAwake(awake);
+        } catch(e) {
+          console.warn('[LARP Bridge] LarpNative.setKeepAwake error:', e);
+        }
+      }
+      window.dispatchEvent(new CustomEvent('larp:keepawakechange', { detail: { isKeepAwake: awake } }));
+      return Promise.resolve({ success: true, isKeepAwake: awake });
+    },
+
+    /**
      * Hide native splash screen
      */
     hideSplashScreen: function() {

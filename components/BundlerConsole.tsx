@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Package, ShieldCheck, Smartphone, Maximize2, Palette, Sparkles, Check, Plus, Trash2, RefreshCw, Code, Download, Play, Eye } from 'lucide-react';
+import { Package, ShieldCheck, Smartphone, Maximize2, Palette, Sparkles, Check, Plus, Trash2, RefreshCw, Code, Download, Play, Eye, GitBranch, Upload } from 'lucide-react';
 import { LarpBuildConfig, LarpBuildResult, IconVariant, StaticFile } from '@/lib/larp/types';
 import { SAMPLE_TEMPLATES, SampleTemplate } from '@/lib/larp/sample-templates';
 
@@ -45,6 +45,10 @@ export function BundlerConsole({
   const [fullscreen, setFullscreen] = useState<boolean>(false);
   const [themeColor, setThemeColor] = useState<string>('#D97757');
   const [watchThemeColor, setWatchThemeColor] = useState<boolean>(true);
+  const [githubUsername, setGithubUsername] = useState<string>('lourdjvke');
+  const [githubToken, setGithubToken] = useState<string>('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');
+  const [githubRepo, setGithubRepo] = useState<string>('larp-android-app-v6');
+  const [keepAwake, setKeepAwake] = useState<boolean>(true);
 
   // Splash Screen
   const [splashType, setSplashType] = useState<'flat_color' | 'custom_icon'>('flat_color');
@@ -103,11 +107,27 @@ export function BundlerConsole({
     'android.permission.VIBRATE',
   ]);
 
-  // Code editor
+  // Code editor & ZIP bundle upload
   const [activeCodeFile, setActiveCodeFile] = useState<string>('index.html');
   const [codeContent, setCodeContent] = useState<string>(SAMPLE_TEMPLATES[0].files[0].content);
+  const [uploadedZipBase64, setUploadedZipBase64] = useState<string | null>(null);
+  const [uploadedZipName, setUploadedZipName] = useState<string | null>(null);
   const [buildLogs, setBuildLogs] = useState<string[]>([]);
   const [autoDetectNotice, setAutoDetectNotice] = useState<string | null>(null);
+
+  const handleZipUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadedZipName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const b64 = reader.result as string;
+      setUploadedZipBase64(b64);
+      setAutoDetectNotice(`Loaded multi-file ZIP package: ${file.name}`);
+      setTimeout(() => setAutoDetectNotice(null), 4000);
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Handle template switch
   const handleTemplateChange = (tplId: string) => {
@@ -215,13 +235,23 @@ export function BundlerConsole({
           { path: 'index.html', content: codeContent },
         ],
       },
+      zipBase64: uploadedZipBase64 || undefined,
+      keepAwake,
     };
 
     try {
       const res = await fetch('/api/larp/build', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(configPayload),
+        body: JSON.stringify({
+          ...configPayload,
+          username: githubUsername,
+          accessToken: githubToken,
+          repo: githubRepo,
+          githubUsername,
+          githubToken,
+          githubRepo,
+        }),
       });
 
       const data: LarpBuildResult = await res.json();
@@ -390,6 +420,32 @@ export function BundlerConsole({
                   <div
                     className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${
                       fullscreen ? 'left-7' : 'left-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Stay Awake Toggle */}
+              <div className="p-4 bg-[#FAF8F5] rounded-xl border border-[#EAE6E1] flex items-start justify-between gap-4">
+                <div>
+                  <div className="font-semibold text-xs text-[#1F1E1D] flex items-center gap-2">
+                    <span>Keep Screen Awake (Stay Awake)</span>
+                    <span className="text-[10px] bg-[#D97757]/10 text-[#D97757] px-1.5 py-0.2 rounded font-mono font-medium">FLAG_KEEP_SCREEN_ON</span>
+                  </div>
+                  <p className="text-[11px] text-[#6B6661] mt-1 leading-relaxed">
+                    Prevents the device display from dimming or locking while the app is active (ideal for workouts, dashboards, video, and presentations).
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setKeepAwake(!keepAwake)}
+                  className={`w-12 h-6 rounded-full transition-colors relative shrink-0 cursor-pointer ${
+                    keepAwake ? 'bg-[#D97757]' : 'bg-[#D8D2C9]'
+                  }`}
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${
+                      keepAwake ? 'left-7' : 'left-1'
                     }`}
                   />
                 </button>
@@ -617,9 +673,16 @@ export function BundlerConsole({
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-sm text-[#1F1E1D] flex items-center gap-2">
                   <Code className="w-4 h-4 text-[#D97757]" />
-                  <span>Static Bundle Entrypoint</span>
+                  <span>Web App Bundle</span>
                 </h3>
-                <span className="text-xs font-mono text-[#8C867D]">index.html</span>
+                <div className="flex items-center gap-2">
+                  <label className="cursor-pointer px-2.5 py-1 text-xs font-semibold text-[#D97757] bg-[#D97757]/10 hover:bg-[#D97757]/15 rounded-lg flex items-center gap-1.5 transition-colors">
+                    <Upload className="w-3 h-3" />
+                    <span>{uploadedZipName ? `ZIP: ${uploadedZipName}` : 'Upload .ZIP Bundle'}</span>
+                    <input type="file" accept=".zip" onChange={handleZipUpload} className="hidden" />
+                  </label>
+                  <span className="text-xs font-mono text-[#8C867D]">index.html</span>
+                </div>
               </div>
 
               <div className="relative">
@@ -638,6 +701,53 @@ export function BundlerConsole({
               <div className="text-[11px] text-[#8C867D] flex items-center justify-between">
                 <span>Changes update simulator live</span>
                 <span>{codeContent.length} chars</span>
+              </div>
+            </div>
+
+
+            {/* GitHub Actions Bridge Credentials */}
+            <div className="p-6 bg-white border border-[#EAE6E1] rounded-2xl space-y-4 shadow-xs">
+              <h3 className="font-bold text-sm text-[#1F1E1D] flex items-center gap-2">
+                <GitBranch className="w-4 h-4 text-[#D97757]" />
+                <span>GitHub Actions CI/CD Bridge (API Middleman)</span>
+              </h3>
+              <p className="text-xs text-[#6B6661] leading-relaxed">
+                Connect your GitHub repository. The LARP API acts as the middleman: commits app assets, triggers GitHub Actions runner, compiles native release packages, and serves a direct download URL.
+              </p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-[#6B6661] mb-1">GitHub Username</label>
+                  <input
+                    type="text"
+                    value={githubUsername}
+                    onChange={e => setGithubUsername(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-[#FAF8F5] border border-[#EAE6E1] rounded-lg text-[#1F1E1D] font-mono focus:outline-none focus:border-[#D97757]"
+                    placeholder="lourdjvke"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[#6B6661] mb-1">GitHub Personal Access Token (PAT)</label>
+                  <input
+                    type="password"
+                    value={githubToken}
+                    onChange={e => setGithubToken(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-[#FAF8F5] border border-[#EAE6E1] rounded-lg text-[#1F1E1D] font-mono focus:outline-none focus:border-[#D97757]"
+                    placeholder="gho_..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[#6B6661] mb-1">Target Repository Name</label>
+                  <input
+                    type="text"
+                    value={githubRepo}
+                    onChange={e => setGithubRepo(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-[#FAF8F5] border border-[#EAE6E1] rounded-lg text-[#1F1E1D] font-mono focus:outline-none focus:border-[#D97757]"
+                    placeholder="larp-android-app-v6"
+                  />
+                  <p className="text-[10px] text-[#8C867D] mt-1">
+                    Choose which repository under your account will execute the build runner.
+                  </p>
+                </div>
               </div>
             </div>
 
