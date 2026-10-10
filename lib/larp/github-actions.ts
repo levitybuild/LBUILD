@@ -332,17 +332,22 @@ jobs:
 
           mkdir -p build_output
           cp signed_release.apk build_output/${safeName}_signed_release.apk
-          cp signed_release.apk build_output/${safeName}_signed_release.apk
           cp release.keystore build_output/larp_release.keystore
+          cp "$WORK_DIR/AndroidManifest.xml" build_output/AndroidManifest.xml
+          cp -r "$WORK_DIR/src" build_output/source
+          cp -r "$WORK_DIR/assets" build_output/assets
+          cp -r "$WORK_DIR/res" build_output/res
+          printf '%s\n' '{"appName":"${appName}","appId":"${appId}","version":"${versionName}","versionCode":${versionCode}}' > build_output/build-metadata.json
+          (cd build_output && zip -r "${safeName}_github_complete.zip" .)
 
           echo "Build artifacts generated successfully!"
           ls -lh build_output/
 
-      - name: Upload Build Artifacts (APK, Keystore)
-        uses: actions/upload-artifact@v4
-        with:
-          name: lionel-release
-          path: build_output/*
-          retention-days: 30
+          - name: Upload Complete Build Artifacts
+            uses: actions/upload-artifact@v4
+            with:
+              name: ${safeName}-complete-release
+              path: build_output/*
+              retention-days: 30
 `;
 }

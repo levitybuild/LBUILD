@@ -42,6 +42,7 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
   const safeName = config.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'larp_app';
   const apkFilename = `${safeName}_signed_release.apk`;
   const zipFilename = `${safeName}_build_artifacts.zip`;
+  let finalZipFilename = zipFilename;
 
   const headers = {
     'Authorization': `Bearer ${token}`,
@@ -221,15 +222,19 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
               githubArtifactSize = releaseArtifact.size_in_bytes;
               logs.push(`[GitHub Bridge] Found remote artifact: "${releaseArtifact.name}" (ID: ${releaseArtifact.id}, ${releaseArtifact.size_in_bytes} bytes)`);
 
-              // Download artifact zip from GitHub
-              logs.push(`[GitHub Bridge Middleman] Downloading artifact zip from GitHub Actions...`);
+              // Download and preserve the complete GitHub Actions artifact ZIP. Never
+              // overwrite the local bundle: GitHub's artifact is a separate deliverable.
+              logs.push(`[GitHub Bridge] Downloading complete artifact ZIP from GitHub Actions...`);
               const downloadRes = await fetch(`https://api.github.com/repos/${username}/${repoName}/actions/artifacts/${releaseArtifact.id}/zip`, { headers });
 
               if (downloadRes.ok) {
                 const zipBuffer = Buffer.from(await downloadRes.arrayBuffer());
-                fs.writeFileSync(path.join(publicDownloadsDir, zipFilename), zipBuffer);
-                saveBuildDownload(zipFilename, zipBuffer, 'application/zip');
-                logs.push(`[GitHub Bridge Middleman] Downloaded ${zipBuffer.length} bytes from GitHub and saved the complete artifact ZIP.`);
+                const githubZipFilename = `${safeName}_github_actions_artifact.zip`;
+                finalZipFilename = githubZipFilename;
+                fs.writeFileSync(path.join(publicDownloadsDir, githubZipFilename), zipBuffer);
+                saveBuildDownload(githubZipFilename, zipBuffer, 'application/zip');
+                localArtifacts.push({ filename: githubZipFilename, type: 'source_zip', sizeBytes: zipBuffer.length });
+                logs.push(`[GitHub Bridge] Complete GitHub Actions artifact saved as ${githubZipFilename} (${zipBuffer.length} bytes).`);
 
                 const zip = await JSZip.loadAsync(zipBuffer);
                 const apkPath = Object.keys(zip.files).find(k => k.toLowerCase().endsWith('.apk'));

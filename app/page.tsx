@@ -65,7 +65,11 @@ export default function HomePage() {
       const link = document.createElement('a');
       link.href = archiveUrl;
       link.download = result.zipFilename || nextArtifacts.find(a => a.type === 'source_zip')?.filename || 'larp-build-artifacts.zip';
+      link.rel = 'noopener';
+      link.style.display = 'none';
+      document.body.appendChild(link);
       link.click();
+      window.setTimeout(() => link.remove(), 1000);
     }
     if (result.signingInfo) {
       setSigningInfo({
