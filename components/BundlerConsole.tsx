@@ -120,8 +120,8 @@ export function BundlerConsole({
   const handleDefaultIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.type !== 'image/png') {
-      setAutoDetectNotice('Use a PNG, JPEG, or WebP image for the app icon.');
+if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+    setAutoDetectNotice('Use a PNG, JPEG, or WebP image for the app icon.');
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
@@ -637,12 +637,14 @@ export function BundlerConsole({
                     key={variant.id}
                     className="p-3 bg-[#FAF8F5] border border-[#EAE6E1] rounded-xl flex flex-col items-center text-center relative group"
                   >
-                    <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-xs mb-2 border border-black/5"
-                      style={{ backgroundColor: variant.backgroundColor, color: variant.foregroundColor }}
-                    >
-                      {variant.glyph}
-                    </div>
+<div
+  className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center text-2xl shadow-xs mb-2 border border-black/5"
+  style={{ backgroundColor: variant.backgroundColor, color: variant.foregroundColor }}
+  >
+  {variant.imageData ? (
+    <img src={variant.imageData} alt={`${variant.name} preview`} className="w-full h-full object-cover" />
+  ) : variant.glyph}
+  </div>
                     <span className="font-semibold text-xs text-[#1F1E1D] truncate max-w-full">
                       {variant.name}
                     </span>
