@@ -108,4 +108,12 @@ export interface LarpBuildResult {
     validityYears: number;
   };
   logs: string[];
+  downloadUrl?: string;
+  apkFilename?: string;
+  githubBridge?: {
+    downloadUrl?: string;
+    apkFilename?: string;
+    githubRunUrl?: string;
+    githubRepoUrl?: string;
+  };
 }

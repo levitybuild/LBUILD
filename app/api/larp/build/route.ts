@@ -122,8 +122,8 @@ export async function POST(req: NextRequest) {
         },
         logs: [],
       }),
-      downloadUrl: githubBridgeInfo?.downloadUrl || '/downloads/lionel.apk',
-      apkFilename: githubBridgeInfo?.apkFilename || 'lionel.apk',
+      downloadUrl: githubBridgeInfo?.downloadUrl,
+      apkFilename: githubBridgeInfo?.apkFilename,
       githubBridge: githubBridgeInfo,
       logs,
     });
