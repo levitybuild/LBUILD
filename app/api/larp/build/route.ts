@@ -62,9 +62,18 @@ export async function POST(req: NextRequest) {
     const logs: string[] = [];
     logs.push(`[LARP Build API] Request received for "${config.name}" (${config.appId})`);
 
-    // 1. Run local bundler engine to produce base artifacts and local lionel.apk
-    const baseResult = await buildLarpApp(config);
-    logs.push(...baseResult.logs);
+    // 1. Prefer the local compiler when the runtime has the Android toolchain. Vercel
+    // serverless functions commonly do not have aapt/dx, so keep the GitHub build
+    // path available instead of failing before the remote build can start.
+    let baseResult: Awaited<ReturnType<typeof buildLarpApp>> | null = null;
+    try {
+      baseResult = await buildLarpApp(config);
+      logs.push(...baseResult.logs);
+    } catch (localError: any) {
+      const message = localError?.message || 'Local Android compiler unavailable.';
+      logs.push(`[Local Compiler Notice] ${message}`);
+      logs.push('[Local Compiler Notice] Continuing with GitHub Actions build runner.');
+    }
 
     let githubBridgeInfo = null;
 
@@ -96,9 +105,25 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({
-      ...baseResult,
-      downloadUrl: '/downloads/lionel.apk',
-      apkFilename: 'lionel.apk',
+      ...(baseResult || {
+        success: true,
+        buildId: `remote_${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        appId: config.appId,
+        name: config.name,
+        artifacts: [],
+        detectedPermissions: config.permissions,
+        featuresApplied: {
+          fullscreen: config.fullscreen,
+          dynamicThemeSync: config.watchThemeColor,
+          splashType: config.splashScreen.type,
+          iconVariantsCount: config.iconVariants.length,
+          pluginsEnabled: Object.entries(config.plugins).filter(([, enabled]) => enabled).map(([name]) => name),
+        },
+        logs: [],
+      }),
+      downloadUrl: githubBridgeInfo?.downloadUrl || '/downloads/lionel.apk',
+      apkFilename: githubBridgeInfo?.apkFilename || 'lionel.apk',
       githubBridge: githubBridgeInfo,
       logs,
     });
