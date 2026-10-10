@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Terminal, Code, Copy, CheckCircle2, Smartphone, Eye, Sparkles, Moon, Sun, ArrowLeft, Layers, Zap } from 'lucide-react';
 
-export function ApiReferenceSection() {
+export function ApiReferenceSection({ lastPayload }: { lastPayload: Record<string, unknown> | null }) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'quickstart' | 'icons' | 'splash_awake' | 'multifile_nav'>('quickstart');
 
@@ -236,6 +236,15 @@ const res = await fetch('/api/larp/build', { method: 'POST', body: formData });`
             <pre className="p-4 bg-[#1F1E1D] text-emerald-400 font-mono text-[11px] rounded-2xl overflow-x-auto leading-relaxed">
               {curlExample}
             </pre>
+          </div>
+
+            {/* Exact payload sent by the last build */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-[#1F1E1D] flex items-center gap-1.5"><Code className="w-3.5 h-3.5 text-[#D97757]" /><span>Exact JSON Payload Sent to GitHub Actions</span></h4>
+              {lastPayload && <button type="button" onClick={() => copyText(JSON.stringify(lastPayload, null, 2), 'payload')} className="text-[11px] font-semibold text-[#D97757] hover:underline">{copiedId === 'payload' ? 'Copied' : 'Copy payload'}</button>}
+            </div>
+            <pre className="p-4 bg-[#1F1E1D] text-emerald-400 font-mono text-[11px] rounded-2xl overflow-x-auto leading-relaxed">{lastPayload ? JSON.stringify(lastPayload, null, 2) : 'Run a build to see the exact payload sent, including iconVariants.imageData.'}</pre>
           </div>
 
           {/* JavaScript fetch Example */}

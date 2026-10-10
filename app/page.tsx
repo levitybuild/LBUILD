@@ -16,6 +16,7 @@ const INITIAL_ARTIFACTS: GeneratedArtifact[] = []; /* populated only by a comple
 export default function HomePage() {
   const [artifacts, setArtifacts] = useState<GeneratedArtifact[]>(INITIAL_ARTIFACTS);
   const [isBuilding, setIsBuilding] = useState<boolean>(false);
+  const [lastPayload, setLastPayload] = useState<Record<string, unknown> | null>(null);
 
   // Simulator preview state
   const [previewState, setPreviewState] = useState({
@@ -179,8 +180,9 @@ export default function HomePage() {
         {/* 2. Bundler Console */}
         <BundlerConsole
           onBuildComplete={handleBuildComplete}
-          onPreviewUpdate={setPreviewState}
-          isBuilding={isBuilding}
+  onPreviewUpdate={setPreviewState}
+  onPayloadChange={setLastPayload}
+  isBuilding={isBuilding}
           setIsBuilding={setIsBuilding}
         />
 
@@ -201,7 +203,7 @@ export default function HomePage() {
         />
 
         {/* 5. API Reference Section */}
-        <ApiReferenceSection />
+        <ApiReferenceSection lastPayload={lastPayload} />
       </main>
 
       {/* Footer (Anti-slop compliant: Quiet copyright and clean links) */}

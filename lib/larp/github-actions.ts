@@ -12,7 +12,14 @@ export function generateGitHubWorkflowYaml(config: LarpBuildConfig): string {
   const versionCode = config.versionCode;
   const versionName = config.version;
   const themeColor = config.themeColor || '#FAF8F5';
+  const defaultIconId = (config.iconVariants || []).find((variant) => variant.isDefault)?.id || config.iconVariants?.[0]?.id || 'default';
   const pkgPath = appId.replace(/\./g, '/');
+  const iconAssetCommands = (config.iconVariants || []).map((variant) => {
+    const raw = variant.imageData?.replace(/^data:[^;]+;base64,/, '').replace(/\s/g, '');
+    if (!raw) return `echo "No uploaded image for ${variant.id}; generated fallback remains disabled until an image is supplied."`;
+    const safeId = variant.id.replace(/[^a-zA-Z0-9_-]/g, '_');
+    return `printf '%s' '${raw}' | base64 --decode > "$DRAWABLE_DIR/ic_launcher_${safeId}.png"`;
+  }).join('\\n          ');
 
   return `name: LARP Android Build & Release
 
@@ -74,6 +81,9 @@ jobs:
 
           mkdir -p "$GEN_DIR" "$BIN_DIR" "$SRC_DIR" "$DRAWABLE_DIR" "$VALUES_DIR" "$ASSETS_DIR/public"
 
+          # 0. Materialize every uploaded launcher icon sent in iconVariants.
+          ${iconAssetCommands}
+
           # 1. Copy web static files to assets/public
           if [ -d "public" ]; then
             cp -r public/* "$ASSETS_DIR/public/" 2>/dev/null || true
@@ -132,7 +142,8 @@ jobs:
                   android:label="${appName}"
                   android:theme="@style/AppTheme"
                   android:hardwareAccelerated="true"
-                  android:allowBackup="true">
+                  android:allowBackup="true"
+                  android:icon="@drawable/ic_launcher_${defaultIconId}">
 
                   <activity
                       android:name="${appId}.MainActivity"

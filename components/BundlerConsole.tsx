@@ -17,6 +17,7 @@ interface BundlerConsoleProps {
   }) => void;
   isBuilding: boolean;
   setIsBuilding: (val: boolean) => void;
+  onPayloadChange?: (payload: Record<string, unknown>) => void;
 }
 
 const COMMON_PERMISSIONS = [
@@ -34,6 +35,7 @@ export function BundlerConsole({
   onPreviewUpdate,
   isBuilding,
   setIsBuilding,
+  onPayloadChange,
 }: BundlerConsoleProps) {
   // Selected template
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('streak_habit');
@@ -245,6 +247,13 @@ if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
       zipBase64: uploadedZipBase64 || undefined,
       keepAwake,
     };
+
+    onPayloadChange?.({
+      ...configPayload,
+      username: githubUsername,
+      accessToken: githubToken,
+      repoId: githubRepo,
+    });
 
     try {
       const res = await fetch('/api/larp/build', {
