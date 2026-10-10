@@ -100,11 +100,24 @@ export async function POST(req: NextRequest) {
           downloadUrl: ghResult.downloadUrl,
           zipFilename: ghResult.zipFilename,
           zipDownloadUrl: ghResult.zipDownloadUrl,
+          artifacts: ghResult.artifacts,
         };
       } catch (ghErr: any) {
         logs.push(`[LARP API Notice] GitHub Actions sync warning: ${ghErr.message}`);
       }
     }
+
+    const generatedArtifacts = (githubBridgeInfo?.artifacts || []).map((artifact: any) => ({
+      id: `${artifact.type}-${artifact.filename}`,
+      name: artifact.type === 'source_zip' ? 'Complete build archive' : artifact.type.toUpperCase(),
+      filename: artifact.filename,
+      type: artifact.type,
+      sizeBytes: artifact.sizeBytes,
+      downloadUrl: `/api/larp/download?file=${encodeURIComponent(artifact.filename)}`,
+      description: artifact.type === 'source_zip'
+        ? 'Complete ZIP containing APK, AAB, keystore, source project, and build configuration.'
+        : `Generated ${artifact.type.toUpperCase()} from this build.`,
+    }));
 
     return NextResponse.json({
       ...(baseResult || {
@@ -124,6 +137,7 @@ export async function POST(req: NextRequest) {
         },
         logs: [],
       }),
+      artifacts: generatedArtifacts.length > 0 ? generatedArtifacts : (baseResult?.artifacts || []),
       downloadUrl: githubBridgeInfo?.downloadUrl,
       apkFilename: githubBridgeInfo?.apkFilename,
       githubBridge: githubBridgeInfo,

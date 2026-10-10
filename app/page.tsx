@@ -78,13 +78,18 @@ export default function HomePage() {
   };
 
   const handleBuildComplete = (result: LarpBuildResult) => {
-  if (result.artifacts && result.artifacts.length > 0) {
-      const archive = result.zipDownloadUrl && result.zipFilename ? [{
-        id: 'complete-zip', name: 'Complete build archive', filename: result.zipFilename, type: 'source_zip' as const,
-        sizeBytes: 0, downloadUrl: result.zipDownloadUrl, description: 'All generated build files from this run, including the APK/AAB and signing outputs.'
-      }] : [];
-      setArtifacts([...result.artifacts, ...archive]);
-  }
+    const nextArtifacts = result.artifacts || [];
+    setArtifacts(nextArtifacts);
+
+    // Start the complete bundle download as soon as the API confirms all
+    // generated files have been materialized.
+    const archiveUrl = result.zipDownloadUrl || nextArtifacts.find(a => a.type === 'source_zip')?.downloadUrl;
+    if (archiveUrl) {
+      const link = document.createElement('a');
+      link.href = archiveUrl;
+      link.download = result.zipFilename || nextArtifacts.find(a => a.type === 'source_zip')?.filename || 'larp-build-artifacts.zip';
+      link.click();
+    }
     if (result.signingInfo) {
       setSigningInfo({
         sha256Fingerprint: result.signingInfo.sha256Fingerprint,

@@ -27,6 +27,11 @@ export interface GithubBridgeResult {
   logs: string[];
   runId?: number;
   runConclusion?: string;
+  artifacts?: {
+    filename: string;
+    type: 'apk' | 'aab' | 'keystore' | 'source_zip';
+    sizeBytes: number;
+  }[];
 }
 
 export async function runGithubActionsBuild(options: GithubBridgeOptions): Promise<GithubBridgeResult> {
@@ -53,14 +58,35 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
     fs.mkdirSync(publicDownloadsDir, { recursive: true });
   }
 
-  // Pre-compile local signed APK as high-reliability baseline
+  let localArtifacts: GithubBridgeResult['artifacts'] = [];
+
+  // Always materialize every locally generated artifact before contacting GitHub.
+  // This gives callers a complete, immediately downloadable bundle even when the
+  // remote runner is still queued or unavailable.
   try {
     const localCompile = await compileGenuineAndroidApk(config, processedFiles, `${safeName}_${Date.now()}`);
-    fs.writeFileSync(path.join(publicDownloadsDir, apkFilename), localCompile.apkBuffer);
-    fs.writeFileSync(path.join(publicDownloadsDir, localCompile.apkFilename), localCompile.apkBuffer);
-    fs.writeFileSync(path.join(publicDownloadsDir, localCompile.keystoreFilename), localCompile.keystoreBuffer);
-    saveBuildDownload(apkFilename, localCompile.apkBuffer, 'application/vnd.android.package-archive');
-    logs.push(`[Local Engine Baseline] Prepared initial "${apkFilename}" (${localCompile.apkBuffer.length} bytes)`);
+    const artifactFiles = [
+      { filename: apkFilename, source: localCompile.apkBuffer, type: 'apk' as const, contentType: 'application/vnd.android.package-archive' },
+      { filename: localCompile.aabFilename, source: localCompile.aabBuffer, type: 'aab' as const, contentType: 'application/octet-stream' },
+      { filename: localCompile.keystoreFilename, source: localCompile.keystoreBuffer, type: 'keystore' as const, contentType: 'application/octet-stream' },
+    ];
+    for (const artifact of artifactFiles) {
+      fs.writeFileSync(path.join(publicDownloadsDir, artifact.filename), artifact.source);
+      saveBuildDownload(artifact.filename, artifact.source, artifact.contentType);
+      localArtifacts.push({ filename: artifact.filename, type: artifact.type, sizeBytes: artifact.source.length });
+    }
+    const bundle = await new JSZip()
+      .file('README.txt', `LARP build artifacts for ${config.name} (${config.appId})\\nGenerated: ${new Date().toISOString()}\\n`)
+      .file('config.json', JSON.stringify({ ...config, accessToken: undefined }, null, 2))
+      .file(apkFilename, localCompile.apkBuffer)
+      .file(localCompile.aabFilename, localCompile.aabBuffer)
+      .file(localCompile.keystoreFilename, localCompile.keystoreBuffer)
+      .file('source-project.zip', localCompile.projectZipBuffer)
+      .generateAsync({ type: 'nodebuffer' });
+    fs.writeFileSync(path.join(publicDownloadsDir, zipFilename), bundle);
+    saveBuildDownload(zipFilename, bundle, 'application/zip');
+    localArtifacts.push({ filename: zipFilename, type: 'source_zip', sizeBytes: bundle.length });
+    logs.push(`[Local Engine Baseline] Prepared APK, AAB, keystore, source archive, and complete ZIP.`);
   } catch (err: any) {
     logs.push(`[Local Engine Notice] ${err.message}`);
   }
@@ -249,6 +275,7 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
     githubArtifactId,
     githubArtifactSize,
     runConclusion: runConclusion || 'in_progress',
+    artifacts: localArtifacts,
     logs,
     runId,
   };
