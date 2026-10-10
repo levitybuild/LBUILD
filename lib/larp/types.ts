@@ -15,6 +15,8 @@ export interface IconVariant {
   isDefault: boolean;
   triggerCondition?: string; // e.g. 'streak >= 7' or 'theme == dark'
   glyph: string; // icon symbol or text
+  imageData?: string; // data URL or base64-encoded PNG/JPEG/WebP image
+  imageMimeType?: string;
   backgroundColor: string;
   foregroundColor: string;
   description?: string;
