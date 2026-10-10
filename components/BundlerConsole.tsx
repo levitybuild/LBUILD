@@ -11,6 +11,7 @@ interface BundlerConsoleProps {
     html: string;
     themeColor: string;
     fullscreen: boolean;
+    appName: string;
     activeIconId: string;
     iconVariants: IconVariant[];
   }) => void;
@@ -45,10 +46,11 @@ export function BundlerConsole({
   const [fullscreen, setFullscreen] = useState<boolean>(false);
   const [themeColor, setThemeColor] = useState<string>('#D97757');
   const [watchThemeColor, setWatchThemeColor] = useState<boolean>(true);
-  const [githubUsername, setGithubUsername] = useState<string>('lourdjvke');
-  const [githubToken, setGithubToken] = useState<string>('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');
-  const [githubRepo, setGithubRepo] = useState<string>('larp-android-app-v6');
+  const [githubUsername, setGithubUsername] = useState<string>('');
+  const [githubToken, setGithubToken] = useState<string>('');
+  const [githubRepo, setGithubRepo] = useState<string>('');
   const [keepAwake, setKeepAwake] = useState<boolean>(true);
+  const [defaultIconName, setDefaultIconName] = useState<string>('');
 
   // Splash Screen
   const [splashType, setSplashType] = useState<'flat_color' | 'custom_icon'>('flat_color');
@@ -115,6 +117,34 @@ export function BundlerConsole({
   const [buildLogs, setBuildLogs] = useState<string[]>([]);
   const [autoDetectNotice, setAutoDetectNotice] = useState<string | null>(null);
 
+  const handleDefaultIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'image/png') {
+      setAutoDetectNotice('Use a PNG, JPEG, or WebP image for the app icon.');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setAutoDetectNotice('App icon must be 2 MB or smaller.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const imageData = String(reader.result);
+      setDefaultIconName(file.name);
+      setIconVariants(prev => {
+        const nextVariants = prev.map((variant, index) => index === 0
+          ? { ...variant, imageData, imageMimeType: file.type }
+          : variant);
+        onPreviewUpdate({ html: codeContent, themeColor, fullscreen, appName, activeIconId: nextVariants[0].id, iconVariants: nextVariants });
+        return nextVariants;
+      });
+      setAutoDetectNotice(`Using ${file.name} as the default launcher icon.`);
+      setTimeout(() => setAutoDetectNotice(null), 4000);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleZipUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -143,6 +173,7 @@ export function BundlerConsole({
 
     onPreviewUpdate({
       html: tpl.files[0].content,
+      appName: tpl.name,
       themeColor: tpl.themeColor,
       fullscreen: tpl.fullscreen,
       activeIconId: iconVariants[0].id,
@@ -154,6 +185,7 @@ export function BundlerConsole({
   const syncPreview = (updates?: Partial<{ html: string; themeColor: string; fullscreen: boolean }>) => {
     onPreviewUpdate({
       html: updates?.html ?? codeContent,
+      appName,
       themeColor: updates?.themeColor ?? themeColor,
       fullscreen: updates?.fullscreen ?? fullscreen,
       activeIconId: iconVariants[0].id,
@@ -191,6 +223,11 @@ export function BundlerConsole({
 
   // Trigger Build
   const handleRunBuild = async () => {
+    if (!githubUsername.trim() || !githubToken.trim() || !githubRepo.trim()) {
+      setBuildLogs(['[Error] Enter your GitHub username, access token, and repository ID before building.']);
+      return;
+    }
+
     setIsBuilding(true);
     setBuildLogs(['[LARP CLI] Initializing build request...', `[Config] Target: ${appId} (${appName})`]);
 
@@ -247,10 +284,7 @@ export function BundlerConsole({
           ...configPayload,
           username: githubUsername,
           accessToken: githubToken,
-          repo: githubRepo,
-          githubUsername,
-          githubToken,
-          githubRepo,
+          repoId: githubRepo,
         }),
       });
 
@@ -449,6 +483,21 @@ export function BundlerConsole({
                     }`}
                   />
                 </button>
+              </div>
+
+              {/* Default App Icon */}
+              <div className="p-4 rounded-xl border border-[#EAE6E1] bg-white">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <label htmlFor="default-app-icon" className="block text-xs font-semibold text-[#1F1E1D]">Default app icon</label>
+                    <p className="mt-1 text-[11px] leading-relaxed text-[#6B6661]">Upload a square PNG, JPEG, or WebP. It is sent as <code>iconVariants[0].imageData</code> in the API payload and becomes the launcher icon.</p>
+                  </div>
+                  <label htmlFor="default-app-icon" className="shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#1F1E1D] text-white text-xs font-semibold cursor-pointer hover:bg-[#373330]">
+                    <Upload className="w-3.5 h-3.5" /> {defaultIconName ? 'Replace' : 'Choose image'}
+                  </label>
+                  <input id="default-app-icon" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleDefaultIconUpload} className="sr-only" />
+                </div>
+                {defaultIconName && <p className="mt-2 text-[11px] text-[#2E7D32]">Selected: {defaultIconName}</p>}
               </div>
 
               {/* Theme Color Picker */}

@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       body = await req.json();
     }
 
-    const { githubUsername, githubToken, ...configPayload } = body;
+    const { githubUsername, githubToken, githubRepo, ...configPayload } = body;
     const config: LarpBuildConfig = configPayload;
 
     if (!config.appId || !config.name) {
@@ -38,16 +38,42 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const effectiveUsername = body.username || body.githubUsername || process.env.GITHUB_USERNAME || 'lourdjvke';
-    const effectiveToken = body.accessToken || body.githubToken || body.token || process.env.GITHUB_TOKEN || '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';
-    const effectiveRepo = body.repo || body.repoId || body.repoName || config.repo || config.repoId || config.repoName || 'larp-android-app-v6';
+    // Credentials are request-scoped. Never ship a fallback PAT or silently use
+    // a server credential for a repository selected by the caller.
+    const effectiveUsername = String(body.username || githubUsername || '').trim();
+    const effectiveToken = String(body.accessToken || githubToken || '').trim();
+    const effectiveRepo = String(body.repoId || body.repo || body.repoName || githubRepo || '').trim();
+
+    if (!effectiveUsername || !effectiveToken || !effectiveRepo) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'username, accessToken, and repoId are required to select the GitHub build repository.',
+        },
+        { status: 400 }
+      );
+    }
+
+    config.username = effectiveUsername;
+    config.accessToken = effectiveToken;
+    config.repoId = effectiveRepo;
+    config.repo = effectiveRepo;
 
     const logs: string[] = [];
     logs.push(`[LARP Build API] Request received for "${config.name}" (${config.appId})`);
 
-    // 1. Run local bundler engine to produce base artifacts and local lionel.apk
-    const baseResult = await buildLarpApp(config);
-    logs.push(...baseResult.logs);
+    // 1. Prefer the local compiler when the runtime has the Android toolchain. Vercel
+    // serverless functions commonly do not have aapt/dx, so keep the GitHub build
+    // path available instead of failing before the remote build can start.
+    let baseResult: Awaited<ReturnType<typeof buildLarpApp>> | null = null;
+    try {
+      baseResult = await buildLarpApp(config);
+      logs.push(...baseResult.logs);
+    } catch (localError: any) {
+      const message = localError?.message || 'Local Android compiler unavailable.';
+      logs.push(`[Local Compiler Notice] ${message}`);
+      logs.push('[Local Compiler Notice] Continuing with GitHub Actions build runner.');
+    }
 
     let githubBridgeInfo = null;
 
@@ -72,6 +98,8 @@ export async function POST(req: NextRequest) {
           artifactSizeBytes: ghResult.githubArtifactSize,
           apkFilename: ghResult.apkFilename,
           downloadUrl: ghResult.downloadUrl,
+          zipFilename: ghResult.zipFilename,
+          zipDownloadUrl: ghResult.zipDownloadUrl,
         };
       } catch (ghErr: any) {
         logs.push(`[LARP API Notice] GitHub Actions sync warning: ${ghErr.message}`);
@@ -79,9 +107,25 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({
-      ...baseResult,
-      downloadUrl: '/downloads/lionel.apk',
-      apkFilename: 'lionel.apk',
+      ...(baseResult || {
+        success: true,
+        buildId: `remote_${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        appId: config.appId,
+        name: config.name,
+        artifacts: [],
+        detectedPermissions: config.permissions,
+        featuresApplied: {
+          fullscreen: config.fullscreen,
+          dynamicThemeSync: config.watchThemeColor,
+          splashType: config.splashScreen.type,
+          iconVariantsCount: config.iconVariants.length,
+          pluginsEnabled: Object.entries(config.plugins).filter(([, enabled]) => enabled).map(([name]) => name),
+        },
+        logs: [],
+      }),
+      downloadUrl: githubBridgeInfo?.downloadUrl,
+      apkFilename: githubBridgeInfo?.apkFilename,
       githubBridge: githubBridgeInfo,
       logs,
     });

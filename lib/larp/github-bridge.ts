@@ -4,6 +4,7 @@ import path from 'path';
 import { LarpBuildConfig } from './types';
 import { generateGitHubWorkflowYaml } from './github-actions';
 import { compileGenuineAndroidApk } from './native-compiler';
+import { saveBuildDownload } from './download-store';
 
 export interface GithubBridgeOptions {
   username: string;
@@ -17,6 +18,8 @@ export interface GithubBridgeResult {
   success: boolean;
   apkFilename: string;
   downloadUrl: string;
+  zipDownloadUrl?: string;
+  zipFilename?: string;
   githubRunUrl?: string;
   githubRepoUrl?: string;
   githubArtifactId?: number;
@@ -31,7 +34,9 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
   const rawRepo = options.repoName || config.repo || config.repoId || config.repoName;
   const repoName = (rawRepo && rawRepo.trim().length > 0) ? rawRepo.trim() : 'larp-android-app-v6';
   const logs: string[] = [];
-  const apkFilename = 'lionel.apk';
+  const safeName = config.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'larp_app';
+  const apkFilename = `${safeName}_signed_release.apk`;
+  const zipFilename = `${safeName}_build_artifacts.zip`;
 
   const headers = {
     'Authorization': `Bearer ${token}`,
@@ -50,10 +55,11 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
 
   // Pre-compile local signed APK as high-reliability baseline
   try {
-    const localCompile = await compileGenuineAndroidApk(config, processedFiles, `lionel_${Date.now()}`);
+    const localCompile = await compileGenuineAndroidApk(config, processedFiles, `${safeName}_${Date.now()}`);
     fs.writeFileSync(path.join(publicDownloadsDir, apkFilename), localCompile.apkBuffer);
     fs.writeFileSync(path.join(publicDownloadsDir, localCompile.apkFilename), localCompile.apkBuffer);
     fs.writeFileSync(path.join(publicDownloadsDir, localCompile.keystoreFilename), localCompile.keystoreBuffer);
+    saveBuildDownload(apkFilename, localCompile.apkBuffer, 'application/vnd.android.package-archive');
     logs.push(`[Local Engine Baseline] Prepared initial "${apkFilename}" (${localCompile.apkBuffer.length} bytes)`);
   } catch (err: any) {
     logs.push(`[Local Engine Notice] ${err.message}`);
@@ -182,7 +188,7 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
           const artRes = await fetch(`https://api.github.com/repos/${username}/${repoName}/actions/runs/${runId}/artifacts`, { headers });
           if (artRes.ok) {
             const artData = await artRes.json();
-            const releaseArtifact = artData.artifacts?.find((a: any) => a.name.includes('release') || a.name.includes('lionel')) || artData.artifacts?.[0];
+            const releaseArtifact = artData.artifacts?.find((a: any) => a.name.includes('release')) || artData.artifacts?.[0];
 
             if (releaseArtifact) {
               githubArtifactId = releaseArtifact.id;
@@ -195,14 +201,18 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
 
               if (downloadRes.ok) {
                 const zipBuffer = Buffer.from(await downloadRes.arrayBuffer());
-                logs.push(`[GitHub Bridge Middleman] Downloaded ${zipBuffer.length} bytes from GitHub.`);
+                fs.writeFileSync(path.join(publicDownloadsDir, zipFilename), zipBuffer);
+                saveBuildDownload(zipFilename, zipBuffer, 'application/zip');
+                logs.push(`[GitHub Bridge Middleman] Downloaded ${zipBuffer.length} bytes from GitHub and saved the complete artifact ZIP.`);
 
                 const zip = await JSZip.loadAsync(zipBuffer);
-                const lionelApkFile = zip.file('lionel.apk') || zip.file(Object.keys(zip.files).find(k => k.endsWith('.apk')) || '');
+                const apkPath = Object.keys(zip.files).find(k => k.toLowerCase().endsWith('.apk'));
+                const apkFile = apkPath ? zip.file(apkPath) : null;
 
-                if (lionelApkFile) {
-                  const apkBytes = await lionelApkFile.async('nodebuffer');
+                if (apkFile) {
+                  const apkBytes = await apkFile.async('nodebuffer');
                   fs.writeFileSync(path.join(publicDownloadsDir, apkFilename), apkBytes);
+                  saveBuildDownload(apkFilename, apkBytes, 'application/vnd.android.package-archive');
                   logs.push(`[GitHub Bridge Success] Extracted genuine GitHub-built "${apkFilename}" (${apkBytes.length} bytes) to downloads directory!`);
                 }
 
@@ -226,12 +236,14 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
     logs.push(`[GitHub Actions Bridge Error] ${ghErr.message}`);
   }
 
-  logs.push(`[LARP API Ready] Final download link verified: /downloads/${apkFilename}`);
+  logs.push(`[LARP API Ready] Final download link verified: /api/larp/download?file=${encodeURIComponent(apkFilename)}`);
 
   return {
     success: true,
     apkFilename,
-    downloadUrl: `/downloads/${apkFilename}`,
+    downloadUrl: `/api/larp/download?file=${encodeURIComponent(apkFilename)}`,
+    zipDownloadUrl: `/api/larp/download?file=${encodeURIComponent(zipFilename)}`,
+    zipFilename,
     githubRunUrl: runUrl || `https://github.com/${username}/${repoName}/actions`,
     githubRepoUrl: repoUrl,
     githubArtifactId,

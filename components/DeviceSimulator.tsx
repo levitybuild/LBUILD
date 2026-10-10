@@ -101,6 +101,9 @@ export function DeviceSimulator({
   }, [currentThemeColor]);
 
   const activeIcon = iconVariants.find(v => v.id === activeIconId) || iconVariants[0];
+  const iconContent = activeIcon?.imageData ? (
+    <img src={activeIcon.imageData} alt={`${activeIcon.name} app icon`} className="w-full h-full rounded-[inherit] object-cover" />
+  ) : (activeIcon?.glyph || 'L');
 
   const triggerReplaySplash = () => {
     setShowSplash(true);
@@ -282,7 +285,7 @@ export function DeviceSimulator({
                         style={{ backgroundColor: currentThemeColor }}
                       >
                         <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-3xl shadow-sm text-white font-bold">
-                          {activeIcon?.glyph || 'L'}
+                          {iconContent}
                         </div>
                         <span className="mt-3 text-sm font-bold text-white tracking-tight">
                           {appName}
@@ -321,7 +324,7 @@ export function DeviceSimulator({
                             color: activeIcon.foregroundColor,
                           }}
                         >
-                          {activeIcon.glyph}
+                          {activeIcon.imageData ? <img src={activeIcon.imageData} alt={`${activeIcon.name} app icon`} className="w-full h-full rounded-[inherit] object-cover" /> : activeIcon.glyph}
                           <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#D97757] rounded-full border-2 border-white" />
                         </div>
                         <span className="text-[10px] font-medium text-center truncate max-w-full text-white/90">

@@ -133,17 +133,32 @@ export async function compileGenuineAndroidApk(
     }
   }
 
-  // 2. Generate PNG launcher icons
+  // 2. Generate launcher icons. A supplied PNG is used byte-for-byte for the
+  // default launcher icon; variants fall back to generated color swatches.
   const defaultRgb = hexToRgb(config.themeColor || '#D97757');
-  fs.writeFileSync(path.join(drawableDir, 'ic_launcher.png'), createPngBuffer(96, 96, defaultRgb.r, defaultRgb.g, defaultRgb.b));
+  const defaultVariant = config.iconVariants.find(v => v.isDefault) || config.iconVariants[0];
+  const decodeImageData = (imageData?: string): Buffer | null => {
+    if (!imageData) return null;
+    const base64 = imageData.replace(/^data:image\/png;base64,/, '').replace(/^data:[^;]+;base64,/, '');
+    try {
+      const buffer = Buffer.from(base64, 'base64');
+      return buffer.length > 8 && buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) ? buffer : null;
+    } catch {
+      return null;
+    }
+  };
+  const uploadedIcon = decodeImageData(defaultVariant?.imageData);
+  fs.writeFileSync(path.join(drawableDir, 'ic_launcher.png'), uploadedIcon || createPngBuffer(96, 96, defaultRgb.r, defaultRgb.g, defaultRgb.b));
 
   for (const variant of config.iconVariants) {
     const rgb = hexToRgb(variant.backgroundColor || config.themeColor);
+    const variantIcon = variant.isDefault ? uploadedIcon : decodeImageData(variant.imageData);
     fs.writeFileSync(
       path.join(drawableDir, `ic_launcher_${variant.id}.png`),
-      createPngBuffer(96, 96, rgb.r, rgb.g, rgb.b)
+      variantIcon || createPngBuffer(96, 96, rgb.r, rgb.g, rgb.b)
     );
   }
+  if (uploadedIcon) logs.push('[Native Compiler] Applied uploaded PNG as the default launcher icon.');
 
   // 3. Write resources: strings.xml, colors.xml, styles.xml
   fs.writeFileSync(

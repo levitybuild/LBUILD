@@ -24,7 +24,7 @@ export function ApiReferenceSection() {
     "keepAwake": true,
     "username": "lourdjvke",
     "accessToken": "gho_yourGitHubPersonalAccessToken",
-    "repo": "larp-android-app-v6",
+    "repoId": "larp-android-app-v6",
     "splashScreen": {
       "type": "flat_color",
       "backgroundColor": "#FAF8F5",
@@ -50,15 +50,15 @@ async function buildMyAndroidApp() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      name: 'Lionel App',
-      appId: 'com.lourdjvke.lionel',
+name: 'My Configurable App',
+    appId: 'com.example.myapp',
       version: '1.0.0',
       versionCode: 101,
       themeColor: '#D97757',
       keepAwake: true,
       username: 'lourdjvke',
       accessToken: 'gho_yourGitHubPersonalAccessToken',
-      repo: 'larp-android-app-v6',
+      repoId: 'larp-android-app-v6',
       splashScreen: { type: 'flat_color', backgroundColor: '#FAF8F5', duration: 2000, autoHide: true },
       iconVariants: [
         { id: 'default', name: 'Default Hero', isDefault: true, glyph: '⚽', backgroundColor: '#D97757', foregroundColor: '#FFF' },
@@ -73,7 +73,7 @@ async function buildMyAndroidApp() {
 
   const data = await response.json();
   if (data.success) {
-    console.log('Direct APK Download URL:', data.downloadUrl); // => /downloads/lionel.apk
+    console.log('Direct APK Download URL:', data.downloadUrl); // => /api/larp/download?file=<configured-name>
     console.log('GitHub Actions Run URL:', data.githubBridge?.runUrl);
     window.location.href = data.downloadUrl; // Direct download in browser
   }
@@ -117,7 +117,7 @@ const response = await fetch('/api/larp/build', {
     version: '1.0.0',
     username: 'lourdjvke',
     accessToken: 'gho_yourToken',
-    repo: 'my-custom-repo-name',
+    repoId: 'my-custom-repo-name',
     zipBase64: 'UEsDBBQAAAAIAAA...[Base64 encoded zip archive content]...'
   })
 });
@@ -130,7 +130,7 @@ formData.append('config', JSON.stringify({
   appId: 'com.company.myapp',
   username: 'lourdjvke',
   accessToken: 'gho_yourToken',
-  repo: 'my-custom-repo-name'
+  repoId: 'my-custom-repo-name'
 }));
 
 const res = await fetch('/api/larp/build', { method: 'POST', body: formData });`;
@@ -207,12 +207,12 @@ const res = await fetch('/api/larp/build', { method: 'POST', body: formData });`
             <div className="p-4 bg-[#FAF8F5] border border-[#EAE6E1] rounded-2xl">
               <span className="text-[10px] font-bold text-[#8C867D] uppercase tracking-wider block">2. GitHub Middleman</span>
               <span className="font-mono text-xs font-bold text-[#1F1E1D] mt-1 block">username, accessToken, repo</span>
-              <p className="text-[11px] text-[#6B6661] mt-1">Choose any repository under your account to execute GitHub Actions runner.</p>
+              <p className="text-[11px] text-[#6B6661] mt-1">Send the repository name as <code>repoId</code>; the token is used only for this request and is never stored by the UI.</p>
             </div>
             <div className="p-4 bg-[#FAF8F5] border border-[#EAE6E1] rounded-2xl">
               <span className="text-[10px] font-bold text-[#8C867D] uppercase tracking-wider block">3. Direct Download</span>
               <span className="font-mono text-xs font-bold text-[#1F1E1D] mt-1 block">data.downloadUrl</span>
-              <p className="text-[11px] text-[#6B6661] mt-1">Directly yields <code>/downloads/lionel.apk</code> served live over HTTP (application/vnd.android.package-archive).</p>
+              <p className="text-[11px] text-[#6B6661] mt-1">Returns a temporary API download URL using the configured app name (application/vnd.android.package-archive).</p>
             </div>
           </div>
 

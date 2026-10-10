@@ -135,7 +135,6 @@ export async function buildLarpApp(config: LarpBuildConfig): Promise<LarpBuildRe
 
   // Write all artifacts to public downloads
   fs.writeFileSync(path.join(publicDownloadsDir, compileResult.apkFilename), compileResult.apkBuffer);
-  fs.writeFileSync(path.join(publicDownloadsDir, 'lionel.apk'), compileResult.apkBuffer);
   fs.writeFileSync(path.join(publicDownloadsDir, compileResult.aabFilename), compileResult.aabBuffer);
   fs.writeFileSync(path.join(publicDownloadsDir, compileResult.keystoreFilename), compileResult.keystoreBuffer);
   fs.writeFileSync(path.join(publicDownloadsDir, compileResult.projectFilename), compileResult.projectZipBuffer);
@@ -166,15 +165,6 @@ export async function buildLarpApp(config: LarpBuildConfig): Promise<LarpBuildRe
 
   // Build Artifact List
   const artifacts: GeneratedArtifact[] = [
-    {
-      id: 'lionel_apk',
-      name: 'lionel.apk (GitHub Actions Release APK)',
-      filename: 'lionel.apk',
-      type: 'apk',
-      sizeBytes: compileResult.apkBuffer.length,
-      downloadUrl: `/downloads/lionel.apk`,
-      description: 'Signed native Android APK compiled via GitHub Actions middleman pipeline.',
-    },
     {
       id: 'apk',
       name: 'Signed Release APK (Valid Android Binary XML)',
