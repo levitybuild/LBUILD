@@ -52,6 +52,9 @@ jobs:
 
       - name: Install Android Build Toolchain
         uses: android-actions/setup-android@v3
+        with:
+          accept-android-sdk-licenses: true
+          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
 
       - name: Install Android SDK packages
         run: |
@@ -86,8 +89,17 @@ jobs:
 
           # 0. Materialize every uploaded launcher icon sent in iconVariants.
           ${iconAssetCommands}
+          if [ ! -f "$DRAWABLE_DIR/ic_launcher_default.xml" ] && [ ! -f "$DRAWABLE_DIR/ic_launcher_default.png" ]; then
+            cat << 'EOF' > "$DRAWABLE_DIR/ic_launcher_default.xml"
+          <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+              <path android:fillColor="#607D8B" android:pathData="M18,18h72v72h-72z" />
+              <path android:fillColor="#FFFFFF" android:pathData="M34,34h40v40h-40z" />
+          </vector>
+          EOF
+          fi
 
           # 1. Copy web static files to assets/public
+
           if [ -d "public" ]; then
             cp -r public/* "$ASSETS_DIR/public/" 2>/dev/null || true
           fi
@@ -346,7 +358,9 @@ jobs:
 
           "$AAPT" package -m -J "$GEN_DIR" -M "$WORK_DIR/AndroidManifest.xml" -S "$RES_DIR" -I "$ANDROID_JAR" --min-sdk-version 21 --target-sdk-version 34
           javac -cp "$ANDROID_JAR" -d "$BIN_DIR" -source 8 -target 8 "$GEN_DIR/${pkgPath}/R.java" "$SRC_DIR/MainActivity.java"
-          "$D8" --min-api 21 --output "$WORK_DIR/dex" "$BIN_DIR"
+          mkdir -p "$WORK_DIR/dex"
+          mapfile -d '' CLASS_FILES < <(find "$BIN_DIR" -type f -name '*.class' -print0)
+          "$D8" --min-api 21 --output "$WORK_DIR/dex" "${CLASS_FILES[@]}"
           cp "$WORK_DIR/dex/classes.dex" "$WORK_DIR/classes.dex"
 
           "$AAPT" package -f -M "$WORK_DIR/AndroidManifest.xml" -S "$RES_DIR" -A "$ASSETS_DIR" -I "$ANDROID_JAR" --min-sdk-version 21 --target-sdk-version 34 -F "$WORK_DIR/unsigned.apk"
@@ -365,17 +379,17 @@ jobs:
           cp -r "$WORK_DIR/src" build_output/source
           cp -r "$WORK_DIR/assets" build_output/assets
           cp -r "$WORK_DIR/res" build_output/res
-          printf '%s\n' '{"appName":"${appName}","appId":"${appId}","version":"${versionName}","versionCode":${versionCode}}' > build_output/build-metadata.json
+          printf '%s\\n' '{"appName":"${appName}","appId":"${appId}","version":"${versionName}","versionCode":${versionCode}}' > build_output/build-metadata.json
           (cd build_output && zip -r "${safeName}_github_complete.zip" .)
 
           echo "Build artifacts generated successfully!"
           ls -lh build_output/
 
-          - name: Upload Complete Build Artifacts
-            uses: actions/upload-artifact@v4
-            with:
-              name: ${safeName}-complete-release
-              path: build_output/*
-              retention-days: 30
+      - name: Upload Complete Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${safeName}-complete-release
+          path: build_output/*
+          retention-days: 30
 `;
 }
