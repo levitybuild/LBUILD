@@ -96,6 +96,7 @@ export async function POST(req: NextRequest) {
           runConclusion: ghResult.runConclusion,
           artifactId: ghResult.githubArtifactId,
           artifactSizeBytes: ghResult.githubArtifactSize,
+          artifactUrl: ghResult.githubArtifactUrl,
           apkFilename: ghResult.apkFilename,
           downloadUrl: ghResult.downloadUrl,
           zipFilename: ghResult.zipFilename,
@@ -107,17 +108,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const generatedArtifacts = (githubBridgeInfo?.artifacts || []).map((artifact: any) => ({
-      id: `${artifact.type}-${artifact.filename}`,
-      name: artifact.type === 'source_zip' ? 'Complete build archive' : artifact.type.toUpperCase(),
-      filename: artifact.filename,
-      type: artifact.type,
-      sizeBytes: artifact.sizeBytes,
-      downloadUrl: `/api/larp/download?file=${encodeURIComponent(artifact.filename)}`,
-      description: artifact.type === 'source_zip'
-        ? 'Complete ZIP containing APK, AAB, keystore, source project, and build configuration.'
-        : `Generated ${artifact.type.toUpperCase()} from this build.`,
-    }));
+    const generatedArtifacts = githubBridgeInfo?.artifactUrl
+      ? [{
+          id: 'github-actions-artifact',
+          name: 'Complete GitHub Actions build artifact',
+          filename: githubBridgeInfo.zipFilename || 'github-actions-artifact.zip',
+          type: 'source_zip',
+          sizeBytes: githubBridgeInfo.artifactSizeBytes || 0,
+          downloadUrl: githubBridgeInfo.artifactUrl,
+          description: 'The complete ZIP uploaded by GitHub Actions, including the APK, AAB, keystore, source, and build files.',
+        }]
+      : (githubBridgeInfo?.artifacts || []).map((artifact: any) => ({
+          id: `${artifact.type}-${artifact.filename}`,
+          name: artifact.type === 'source_zip' ? 'Complete build archive' : artifact.type.toUpperCase(),
+          filename: artifact.filename,
+          type: artifact.type,
+          sizeBytes: artifact.sizeBytes,
+          downloadUrl: `/api/larp/download?file=${encodeURIComponent(artifact.filename)}`,
+          description: artifact.type === 'source_zip'
+            ? 'Complete ZIP containing APK, AAB, keystore, source project, and build configuration.'
+            : `Generated ${artifact.type.toUpperCase()} from this build.`,
+        }));
 
     return NextResponse.json({
       ...(baseResult || {

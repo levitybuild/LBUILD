@@ -24,6 +24,7 @@ export interface GithubBridgeResult {
   githubRepoUrl?: string;
   githubArtifactId?: number;
   githubArtifactSize?: number;
+  githubArtifactUrl?: string;
   logs: string[];
   runId?: number;
   runConclusion?: string;
@@ -98,6 +99,7 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
   let runConclusion: string | undefined;
   let githubArtifactId: number | undefined;
   let githubArtifactSize: number | undefined;
+  let githubArtifactUrl: string | undefined;
 
   try {
     // 1. Ensure repository exists
@@ -220,7 +222,9 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
             if (releaseArtifact) {
               githubArtifactId = releaseArtifact.id;
               githubArtifactSize = releaseArtifact.size_in_bytes;
+              githubArtifactUrl = `https://github.com/${username}/${repoName}/actions/runs/${runId}/artifacts/${releaseArtifact.id}`;
               logs.push(`[GitHub Bridge] Found remote artifact: "${releaseArtifact.name}" (ID: ${releaseArtifact.id}, ${releaseArtifact.size_in_bytes} bytes)`);
+              logs.push(`[GitHub Bridge] Direct GitHub Actions artifact URL: ${githubArtifactUrl}`);
 
               // Download and preserve the complete GitHub Actions artifact ZIP. Never
               // overwrite the local bundle: GitHub's artifact is a separate deliverable.
@@ -267,14 +271,18 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
     logs.push(`[GitHub Actions Bridge Error] ${ghErr.message}`);
   }
 
-  logs.push(`[LARP API Ready] Final download link verified: /api/larp/download?file=${encodeURIComponent(apkFilename)}`);
+  if (runConclusion === 'success' && githubArtifactUrl) {
+    logs.push(`[LARP API Ready] GitHub Actions artifact URL: ${githubArtifactUrl}`);
+  } else if (runConclusion === 'failure') {
+    logs.push('[LARP API Error] GitHub Actions build failed; no download links were generated.');
+  }
 
   return {
-    success: true,
+    success: runConclusion !== 'failure',
     apkFilename,
-    downloadUrl: `/api/larp/download?file=${encodeURIComponent(apkFilename)}`,
-    zipDownloadUrl: `/api/larp/download?file=${encodeURIComponent(zipFilename)}`,
-    zipFilename,
+    downloadUrl: githubArtifactUrl || '',
+    zipDownloadUrl: githubArtifactUrl || '',
+    zipFilename: githubArtifactUrl ? `${safeName}_github_actions_artifact.zip` : undefined,
     githubRunUrl: runUrl || `https://github.com/${username}/${repoName}/actions`,
     githubRepoUrl: repoUrl,
     githubArtifactId,

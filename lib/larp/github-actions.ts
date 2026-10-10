@@ -51,12 +51,15 @@ jobs:
           java-version: '17'
 
       - name: Install Android Build Toolchain
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends aapt apksigner zipalign dalvik-exchange android-framework-res libandroid-23-java default-jdk-headless
-          if ! command -v dx &> /dev/null && [ -f /usr/bin/dalvik-exchange ]; then
-            sudo ln -sf /usr/bin/dalvik-exchange /usr/bin/dx
-          fi
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/34.0.0:$PATH"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+          echo "$ANDROID_HOME/build-tools/34.0.0" >> "$GITHUB_PATH"
 
       - name: Build Genuine Signed APK & AAB
         env:
