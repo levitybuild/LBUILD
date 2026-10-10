@@ -119,7 +119,7 @@ export function BundlerConsole({
   const handleDefaultIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+    if (file.type !== 'image/png') {
       setAutoDetectNotice('Use a PNG, JPEG, or WebP image for the app icon.');
       return;
     }
