@@ -45,9 +45,9 @@ export function BundlerConsole({
   const [fullscreen, setFullscreen] = useState<boolean>(false);
   const [themeColor, setThemeColor] = useState<string>('#D97757');
   const [watchThemeColor, setWatchThemeColor] = useState<boolean>(true);
-  const [githubUsername, setGithubUsername] = useState<string>('lourdjvke');
-  const [githubToken, setGithubToken] = useState<string>('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');
-  const [githubRepo, setGithubRepo] = useState<string>('larp-android-app-v6');
+  const [githubUsername, setGithubUsername] = useState<string>('');
+  const [githubToken, setGithubToken] = useState<string>('');
+  const [githubRepo, setGithubRepo] = useState<string>('');
   const [keepAwake, setKeepAwake] = useState<boolean>(true);
 
   // Splash Screen
@@ -191,6 +191,11 @@ export function BundlerConsole({
 
   // Trigger Build
   const handleRunBuild = async () => {
+    if (!githubUsername.trim() || !githubToken.trim() || !githubRepo.trim()) {
+      setBuildLogs(['[Error] Enter your GitHub username, access token, and repository ID before building.']);
+      return;
+    }
+
     setIsBuilding(true);
     setBuildLogs(['[LARP CLI] Initializing build request...', `[Config] Target: ${appId} (${appName})`]);
 
@@ -247,10 +252,7 @@ export function BundlerConsole({
           ...configPayload,
           username: githubUsername,
           accessToken: githubToken,
-          repo: githubRepo,
-          githubUsername,
-          githubToken,
-          githubRepo,
+          repoId: githubRepo,
         }),
       });
 

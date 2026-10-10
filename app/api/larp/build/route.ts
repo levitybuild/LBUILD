@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       body = await req.json();
     }
 
-    const { githubUsername, githubToken, ...configPayload } = body;
+    const { githubUsername, githubToken, githubRepo, ...configPayload } = body;
     const config: LarpBuildConfig = configPayload;
 
     if (!config.appId || !config.name) {
@@ -38,9 +38,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const effectiveUsername = body.username || body.githubUsername || process.env.GITHUB_USERNAME || 'lourdjvke';
-    const effectiveToken = body.accessToken || body.githubToken || body.token || process.env.GITHUB_TOKEN || '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';
-    const effectiveRepo = body.repo || body.repoId || body.repoName || config.repo || config.repoId || config.repoName || 'larp-android-app-v6';
+    // Credentials are request-scoped. Never ship a fallback PAT or silently use
+    // a server credential for a repository selected by the caller.
+    const effectiveUsername = String(body.username || githubUsername || '').trim();
+    const effectiveToken = String(body.accessToken || githubToken || '').trim();
+    const effectiveRepo = String(body.repoId || body.repo || body.repoName || githubRepo || '').trim();
+
+    if (!effectiveUsername || !effectiveToken || !effectiveRepo) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'username, accessToken, and repoId are required to select the GitHub build repository.',
+        },
+        { status: 400 }
+      );
+    }
+
+    config.username = effectiveUsername;
+    config.accessToken = effectiveToken;
+    config.repoId = effectiveRepo;
+    config.repo = effectiveRepo;
 
     const logs: string[] = [];
     logs.push(`[LARP Build API] Request received for "${config.name}" (${config.appId})`);
