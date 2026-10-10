@@ -11,6 +11,7 @@ interface BundlerConsoleProps {
     html: string;
     themeColor: string;
     fullscreen: boolean;
+    appName: string;
     activeIconId: string;
     iconVariants: IconVariant[];
   }) => void;
@@ -131,9 +132,13 @@ export function BundlerConsole({
     reader.onload = () => {
       const imageData = String(reader.result);
       setDefaultIconName(file.name);
-      setIconVariants(prev => prev.map((variant, index) => index === 0
-        ? { ...variant, imageData, imageMimeType: file.type }
-        : variant));
+      setIconVariants(prev => {
+        const nextVariants = prev.map((variant, index) => index === 0
+          ? { ...variant, imageData, imageMimeType: file.type }
+          : variant);
+        onPreviewUpdate({ html: codeContent, themeColor, fullscreen, appName, activeIconId: nextVariants[0].id, iconVariants: nextVariants });
+        return nextVariants;
+      });
       setAutoDetectNotice(`Using ${file.name} as the default launcher icon.`);
       setTimeout(() => setAutoDetectNotice(null), 4000);
     };
@@ -168,6 +173,7 @@ export function BundlerConsole({
 
     onPreviewUpdate({
       html: tpl.files[0].content,
+      appName: tpl.name,
       themeColor: tpl.themeColor,
       fullscreen: tpl.fullscreen,
       activeIconId: iconVariants[0].id,
@@ -179,6 +185,7 @@ export function BundlerConsole({
   const syncPreview = (updates?: Partial<{ html: string; themeColor: string; fullscreen: boolean }>) => {
     onPreviewUpdate({
       html: updates?.html ?? codeContent,
+      appName,
       themeColor: updates?.themeColor ?? themeColor,
       fullscreen: updates?.fullscreen ?? fullscreen,
       activeIconId: iconVariants[0].id,

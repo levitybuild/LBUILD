@@ -22,6 +22,7 @@ export default function HomePage() {
     html: SAMPLE_TEMPLATES[0].files[0].content,
     themeColor: '#D97757',
     fullscreen: false,
+    appName: 'StreakHero',
     activeIconId: 'default',
     iconVariants: [
       {
@@ -199,12 +200,12 @@ export default function HomePage() {
 
         {/* 3. Real-Time Device Simulator */}
         <DeviceSimulator
-          htmlContent={previewState.html}
-          themeColor={previewState.themeColor}
+        htmlContent={previewState.html}
+        appName={previewState.appName}
+        themeColor={previewState.themeColor}
           fullscreen={previewState.fullscreen}
           activeIconId={previewState.activeIconId}
           iconVariants={previewState.iconVariants}
-          appName="StreakHero"
         />
 
         {/* 4. Downloads & Artifacts Section */}
