@@ -50,8 +50,8 @@ async function buildMyAndroidApp() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      name: 'Lionel App',
-      appId: 'com.lourdjvke.lionel',
+name: 'My Configurable App',
+    appId: 'com.example.myapp',
       version: '1.0.0',
       versionCode: 101,
       themeColor: '#D97757',
@@ -73,7 +73,7 @@ async function buildMyAndroidApp() {
 
   const data = await response.json();
   if (data.success) {
-    console.log('Direct APK Download URL:', data.downloadUrl); // => /downloads/lionel.apk
+    console.log('Direct APK Download URL:', data.downloadUrl); // => /api/larp/download?file=<configured-name>
     console.log('GitHub Actions Run URL:', data.githubBridge?.runUrl);
     window.location.href = data.downloadUrl; // Direct download in browser
   }
@@ -212,7 +212,7 @@ const res = await fetch('/api/larp/build', { method: 'POST', body: formData });`
             <div className="p-4 bg-[#FAF8F5] border border-[#EAE6E1] rounded-2xl">
               <span className="text-[10px] font-bold text-[#8C867D] uppercase tracking-wider block">3. Direct Download</span>
               <span className="font-mono text-xs font-bold text-[#1F1E1D] mt-1 block">data.downloadUrl</span>
-              <p className="text-[11px] text-[#6B6661] mt-1">Directly yields <code>/downloads/lionel.apk</code> served live over HTTP (application/vnd.android.package-archive).</p>
+              <p className="text-[11px] text-[#6B6661] mt-1">Returns a temporary API download URL using the configured app name (application/vnd.android.package-archive).</p>
             </div>
           </div>
 

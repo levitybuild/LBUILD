@@ -331,7 +331,7 @@ jobs:
           apksigner sign --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --ks release.keystore --ks-pass pass:larp_keystore_password_2026 --ks-key-alias larp_release --out signed_release.apk "$WORK_DIR/aligned.apk"
 
           mkdir -p build_output
-          cp signed_release.apk build_output/lionel.apk
+          cp signed_release.apk build_output/${safeName}_signed_release.apk
           cp signed_release.apk build_output/${safeName}_signed_release.apk
           cp release.keystore build_output/larp_release.keystore
 

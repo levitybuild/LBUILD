@@ -186,7 +186,7 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
           const artRes = await fetch(`https://api.github.com/repos/${username}/${repoName}/actions/runs/${runId}/artifacts`, { headers });
           if (artRes.ok) {
             const artData = await artRes.json();
-            const releaseArtifact = artData.artifacts?.find((a: any) => a.name.includes('release') || a.name.includes('lionel')) || artData.artifacts?.[0];
+            const releaseArtifact = artData.artifacts?.find((a: any) => a.name.includes('release')) || artData.artifacts?.[0];
 
             if (releaseArtifact) {
               githubArtifactId = releaseArtifact.id;
