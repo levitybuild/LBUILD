@@ -193,6 +193,10 @@ export async function POST(req: NextRequest) {
     if (!accessToken) accessToken = req.headers.get('x-github-token') || process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN || process.env.GH_TOKEN;
     if (!repo) repo = req.headers.get('x-github-repo') || process.env.GITHUB_REPO;
 
+    // Accept tokens pasted with an accidental leading slash, but never alter
+    // valid token characters or log the credential.
+    accessToken = accessToken?.trim().replace(/^\/+/, '') || undefined;
+
     // Sanitize package ID
     const sanitizedAppId = appId
       .toLowerCase()
