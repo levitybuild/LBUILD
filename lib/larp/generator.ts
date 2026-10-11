@@ -133,16 +133,6 @@ export async function buildLarpApp(config: LarpBuildConfig): Promise<LarpBuildRe
   const compileResult = await compileGenuineAndroidApk(config, processedFiles, buildId);
   logs.push(...compileResult.logs);
 
-  // Write all artifacts to public downloads
-  fs.writeFileSync(path.join(publicDownloadsDir, compileResult.apkFilename), compileResult.apkBuffer);
-  fs.writeFileSync(path.join(publicDownloadsDir, 'lionel.apk'), compileResult.apkBuffer);
-  fs.writeFileSync(path.join(publicDownloadsDir, compileResult.aabFilename), compileResult.aabBuffer);
-  fs.writeFileSync(path.join(publicDownloadsDir, compileResult.keystoreFilename), compileResult.keystoreBuffer);
-  fs.writeFileSync(path.join(publicDownloadsDir, compileResult.projectFilename), compileResult.projectZipBuffer);
-
-  const bridgeFilename = `larp-bridge.js`;
-  fs.writeFileSync(path.join(publicDownloadsDir, bridgeFilename), bridgeScriptContent);
-
   // Release Info JSON
   const releaseInfo = {
     appName: config.name,
@@ -162,7 +152,6 @@ export async function buildLarpApp(config: LarpBuildConfig): Promise<LarpBuildRe
     themeColor: config.themeColor,
     dynamicIconVariants: config.iconVariants.map(v => ({ id: v.id, name: v.name, isDefault: v.isDefault })),
   };
-  fs.writeFileSync(path.join(publicDownloadsDir, 'release_info.json'), JSON.stringify(releaseInfo, null, 2));
 
   // Generate Complete Play Store Release ZIP Bundle (All-in-one APK, AAB, Keystore, Manifest)
   const completeZip = new JSZip();
@@ -187,20 +176,27 @@ Timestamp: ${timestamp}
 3. **larp_release.keystore** - RSA-2048 signing certificate & key (SHA-256: ${compileResult.sha256Fingerprint})
 4. **release_info.json** - Cryptographic credentials, key alias, and fingerprints
 5. **larp-bridge.js** - Native JavaScript runtime bridge
-
-## Google Play Console Deployment Instructions:
-1. Navigate to Google Play Console: https://play.google.com/console
-2. Select your application or create a new app: "${config.name}"
-3. Go to **Release** > **Production** (or Internal Testing) > **Create new release**
-4. Upload **lionel.aab**
-5. Save and rollout your release!
 `
   );
 
   const completeZipBuffer = await completeZip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
   const completeZipFilename = 'lionel_complete_release_bundle.zip';
-  fs.writeFileSync(path.join(publicDownloadsDir, completeZipFilename), completeZipBuffer);
-  fs.writeFileSync(path.join(publicDownloadsDir, 'app_playstore_bundle.zip'), completeZipBuffer);
+  const bridgeFilename = 'larp-bridge.js';
+
+  // Safely write artifacts to public downloads if writable (bypassed gracefully in Vercel read-only Lambda)
+  try {
+    fs.writeFileSync(path.join(publicDownloadsDir, compileResult.apkFilename), compileResult.apkBuffer);
+    fs.writeFileSync(path.join(publicDownloadsDir, 'lionel.apk'), compileResult.apkBuffer);
+    fs.writeFileSync(path.join(publicDownloadsDir, compileResult.aabFilename), compileResult.aabBuffer);
+    fs.writeFileSync(path.join(publicDownloadsDir, compileResult.keystoreFilename), compileResult.keystoreBuffer);
+    fs.writeFileSync(path.join(publicDownloadsDir, compileResult.projectFilename), compileResult.projectZipBuffer);
+    fs.writeFileSync(path.join(publicDownloadsDir, bridgeFilename), bridgeScriptContent);
+    fs.writeFileSync(path.join(publicDownloadsDir, 'release_info.json'), JSON.stringify(releaseInfo, null, 2));
+    fs.writeFileSync(path.join(publicDownloadsDir, completeZipFilename), completeZipBuffer);
+    fs.writeFileSync(path.join(publicDownloadsDir, 'app_playstore_bundle.zip'), completeZipBuffer);
+  } catch (_) {
+    // Read-only filesystem in Vercel serverless environment; in-memory base64 buffers are preserved
+  }
 
   // Build Artifact List
   const artifacts: GeneratedArtifact[] = [

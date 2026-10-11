@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0F172A">
+  <title>Roulette Royale</title>
+  <script src="larp-bridge.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: #0F172A; color: #F8FAFC; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; text-align: center; }
+    .card { background: #1E293B; border: 1px solid #334155; border-radius: 20px; padding: 24px; max-width: 400px; width: 100%; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); }
+    .title { font-size: 24px; font-weight: 800; color: #F59E0B; margin-bottom: 8px; letter-spacing: 0.5px; }
+    .subtitle { font-size: 13px; color: #94A3B8; margin-bottom: 20px; }
+    .wheel-container { position: relative; width: 180px; height: 180px; margin: 0 auto 20px; }
+    .wheel { width: 100%; height: 100%; border-radius: 50%; border: 6px solid #D97706; background: conic-gradient(#DC2626 0deg 30deg, #1E293B 30deg 60deg, #DC2626 60deg 90deg, #1E293B 90deg 120deg, #16A34A 120deg 150deg, #DC2626 150deg 180deg, #1E293B 180deg 210deg, #DC2626 210deg 240deg, #1E293B 240deg 270deg, #DC2626 270deg 300deg, #1E293B 300deg 330deg, #DC2626 330deg 360deg); transition: transform 4s cubic-bezier(0.1, 0.9, 0.2, 1); box-shadow: 0 0 20px rgba(245,158,11,0.3); }
+    .pointer { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 18px solid #F59E0B; z-index: 10; }
+    .btn-spin { background: linear-gradient(135deg, #F59E0B, #D97706); color: #0F172A; border: none; padding: 14px 28px; font-size: 16px; font-weight: 800; border-radius: 12px; cursor: pointer; width: 100%; margin-bottom: 24px; transition: transform 0.1s; }
+    .btn-spin:active { transform: scale(0.97); }
+    .icon-switcher-box { background: #0F172A; border: 1px solid #334155; border-radius: 14px; padding: 16px; margin-top: 10px; }
+    .icon-switcher-title { font-size: 12px; font-weight: 700; color: #CBD5E1; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; }
+    .variant-btn-group { display: flex; gap: 8px; }
+    .btn-variant { flex: 1; padding: 10px 8px; border-radius: 10px; border: 1px solid #334155; background: #1E293B; color: #F8FAFC; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all 0.2s; }
+    .btn-variant.active { border-color: #F59E0B; background: rgba(245,158,11,0.15); color: #F59E0B; }
+    .status-badge { font-size: 11px; color: #10B981; margin-top: 12px; font-family: monospace; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1 class="title">Roulette Royale</h1>
+    <p class="subtitle">Pure Native Webview Runtime with Dynamic App Icon Swapping</p>
+    
+    <div class="wheel-container">
+      <div class="pointer"></div>
+      <div id="wheel" class="wheel"></div>
+    </div>
+
+    <button id="btnSpin" class="btn-spin" onclick="spinWheel()">SPIN THE WHEEL</button>
+
+    <!-- DYNAMIC APP ICON SWITCHER COMPONENT -->
+    <div class="icon-switcher-box">
+      <div class="icon-switcher-title">Duolingo-Style Dynamic Launcher Icon</div>
+      <div class="variant-btn-group">
+        <button id="btnDefault" class="btn-variant active" onclick="switchIcon('default')">
+          <img src="/icons/roulette_default.png" style="width:28px;height:28px;border-radius:6px;object-fit:cover;" alt="Classic" onerror="this.style.display='none'" />
+          <span>Classic Red</span>
+        </button>
+        <button id="btnGold" class="btn-variant" onclick="switchIcon('vip_gold')">
+          <img src="/icons/roulette_vip_gold.png" style="width:28px;height:28px;border-radius:6px;object-fit:cover;" alt="VIP Gold" onerror="this.style.display='none'" />
+          <span>VIP Gold</span>
+        </button>
+      </div>
+      <div id="statusBadge" class="status-badge">Active Launcher Icon: Classic Red</div>
+    </div>
+  </div>
+
+  <script>
+    let currentDegree = 0;
+    let activeIcon = "default";
+
+    function spinWheel() {
+      if (window.Larp && window.Larp.haptic) {
+        window.Larp.haptic("HEAVY");
+      }
+      const randomSpin = Math.floor(Math.random() * 360) + 1440;
+      currentDegree += randomSpin;
+      document.getElementById("wheel").style.transform = "rotate(" + currentDegree + "deg)";
+    }
+
+    /**
+     * DYNAMIC APP ICON SWITCHER FUNCTION
+     * Communicates with Android MainActivity / activity-alias via LarpBridge
+     */
+    function switchIcon(variantId) {
+      activeIcon = variantId;
+      console.log("[Roulette] Requesting launcher icon switch to:", variantId);
+
+      // 1. Primary JavaScript Bridge (injected by LARP Runtime)
+      if (window.Larp && typeof window.Larp.setIcon === "function") {
+        window.Larp.setIcon(variantId);
+      } 
+      // 2. Direct Native Webview Interface Fallback
+      else if (window.LarpNative && typeof window.LarpNative.setIcon === "function") {
+        window.LarpNative.setIcon(variantId);
+      } else {
+        console.warn("[Roulette] Running in browser preview; simulated icon switch to: " + variantId);
+      }
+
+      // 3. Optional haptic feedback
+      if (window.Larp && window.Larp.haptic) {
+        window.Larp.haptic("MEDIUM");
+      }
+
+      // Update UI buttons
+      document.getElementById("btnDefault").classList.toggle("active", variantId === "default");
+      document.getElementById("btnGold").classList.toggle("active", variantId === "vip_gold");
+      document.getElementById("statusBadge").innerText = "Active Launcher Icon: " + (variantId === "default" ? "Classic Red" : "VIP Gold (Alias)");
+    }
+  </script>
+</body>
+</html>

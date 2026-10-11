@@ -354,6 +354,7 @@ export function getLarpBridgeScript(config: {
   }
 
   window.LarpBridge = LarpBridge;
+  window.Larp = LarpBridge;
 })(window);
 `;
 }

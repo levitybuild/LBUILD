@@ -1,28 +1,28 @@
 {
-  "appName": "Lionel App",
-  "appId": "com.lourdjvke.lionel",
+  "appName": "Roulette",
+  "appId": "com.casino.roulette",
   "version": "1.0.0",
   "versionCode": 101,
-  "buildId": "larp_1791643888683_b92664",
-  "timestamp": "2026-10-10T14:51:28.684Z",
-  "sha256Fingerprint": "C3:24:8E:55:45:EC:B9:E7:42:C6:22:10:53:C8:9D:93:B8:0D:2E:99:46:61:EF:47:BF:CF:6C:2F:52:35:F6:40",
-  "sha1Fingerprint": "91:1F:D2:FF:57:B1:2D:EA:C3:5B:95:82:28:15:B2:47:3B:40:9F:93",
+  "buildId": "larp_1791736163410_0d93ae",
+  "timestamp": "2026-10-11T16:29:23.411Z",
+  "sha256Fingerprint": "6D:5D:84:09:08:38:FD:0B:91:45:EC:E6:28:A4:AF:32:3A:3B:9F:3B:D2:70:FC:64:2A:07:49:0D:35:9E:34:FB",
+  "sha1Fingerprint": "4C:8C:4A:0F:52:4A:14:48:96:EB:4C:A7:E3:DC:24:A7:8F:70:52:61",
   "signingAlias": "larp_release",
   "signingPassword": "larp_keystore_password_2026",
   "validityYears": 25,
   "playStoreReady": true,
   "appStoreReady": true,
   "fullscreenMode": "Standard",
-  "themeColor": "#D97757",
+  "themeColor": "#0F172A",
   "dynamicIconVariants": [
     {
       "id": "default",
-      "name": "Lionel Custom Flame Icon",
+      "name": "Classic Red",
       "isDefault": true
     },
     {
-      "id": "streak_fire",
-      "name": "Streak Fire Gold",
+      "id": "vip_gold",
+      "name": "VIP Gold",
       "isDefault": false
     }
   ]

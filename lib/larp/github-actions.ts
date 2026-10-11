@@ -157,9 +157,22 @@ jobs:
                       android:launchMode="singleTask">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
                       </intent-filter>
                   </activity>
+
+                  <!-- Default launcher alias: enabled by default -->
+                  <activity-alias
+                      android:name="${appId}.MainActivity_default"
+                      android:targetActivity="${appId}.MainActivity"
+                      android:icon="@mipmap/ic_launcher"
+                      android:label="${appName}"
+                      android:enabled="true"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity-alias>
 
 ${config.iconVariants.filter(v => v.id !== 'default' && !v.isDefault).map(v => `                  <activity-alias
                       android:name="${appId}.MainActivity_${v.id}"
@@ -296,6 +309,30 @@ ${config.iconVariants.filter(v => v.id !== 'default' && !v.isDefault).map(v => `
                   });
               }
 
+              private void switchAppIcon(final String targetVariantId) {
+                  mainHandler.post(new Runnable() {
+                      @Override
+                      public void run() {
+                          try {
+                              PackageManager pm = getPackageManager();
+                              String pkg = getPackageName();
+                              String target = (targetVariantId == null || targetVariantId.trim().isEmpty()) ? "default" : targetVariantId.trim();
+                              String[] allVariants = new String[] { "default", ${config.iconVariants.filter(v => v.id !== 'default' && !v.isDefault).map(v => `"${v.id}"`).join(', ')} };
+
+                              ComponentName targetAlias = new ComponentName(pkg, pkg + ".MainActivity_" + target);
+                              pm.setComponentEnabledSetting(targetAlias, PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP);
+
+                              for (String v : allVariants) {
+                                  if (!v.equalsIgnoreCase(target)) {
+                                      ComponentName other = new ComponentName(pkg, pkg + ".MainActivity_" + v);
+                                      pm.setComponentEnabledSetting(other, PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP);
+                                  }
+                              }
+                          } catch (Exception ignored) {}
+                      }
+                  });
+              }
+
               public class LarpNativeInterface {
                   @JavascriptInterface
                   public void setThemeColor(String c) { applyThemeColor(c); }
@@ -314,7 +351,7 @@ ${config.iconVariants.filter(v => v.id !== 'default' && !v.isDefault).map(v => `
                   @JavascriptInterface
                   public void hideSplashScreen() {}
                   @JavascriptInterface
-                  public void setIcon(String i) {}
+                  public void setIcon(String i) { switchAppIcon(i); }
                   @JavascriptInterface
                   public void haptic(String s) {
                       try {
@@ -348,7 +385,7 @@ ${config.iconVariants.filter(v => v.id !== 'default' && !v.isDefault).map(v => `
           apksigner sign --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --ks release.keystore --ks-pass pass:larp_keystore_password_2026 --ks-key-alias larp_release --out signed_release.apk "$WORK_DIR/aligned.apk"
 
           mkdir -p build_output
-          cp signed_release.apk build_output/${safeName}_signed_release.apk
+          cp signed_release.apk build_output/lionel.apk
           cp signed_release.apk build_output/${safeName}_signed_release.apk
           cp release.keystore build_output/larp_release.keystore
 

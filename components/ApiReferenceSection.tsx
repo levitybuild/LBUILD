@@ -13,7 +13,7 @@ export function ApiReferenceSection() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const curlExample = `curl -X POST ${typeof window !== 'undefined' ? window.location.origin : 'https://your-app-domain.com'}/api/larp/build \\
+  const curlExample = `curl -X POST https://your-app-domain.com/api/larp/build \\
   -H "Content-Type: application/json" \\
   -d '{
     "name": "StreakHero",
@@ -24,7 +24,7 @@ export function ApiReferenceSection() {
     "keepAwake": true,
     "username": "lourdjvke",
     "accessToken": "gho_yourGitHubPersonalAccessToken",
-    "repoId": "larp-android-app-v6",
+    "repo": "larp-android-app-v6",
     "splashScreen": {
       "type": "flat_color",
       "backgroundColor": "#FAF8F5",
@@ -44,24 +44,21 @@ export function ApiReferenceSection() {
     }
   }'`;
 
-  const fetchExample = `// The endpoint follows the page origin, so this works on any deployment.
-const LARP_API_ORIGIN = window.location.origin;
-
-// Trigger build and immediately retrieve APK download URL
+  const fetchExample = `// Trigger build and immediately retrieve APK download URL
 async function buildMyAndroidApp() {
-  const response = await fetch(LARP_API_ORIGIN + '/api/larp/build', {
+  const response = await fetch('/api/larp/build', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-name: 'My Configurable App',
-    appId: 'com.example.myapp',
+      name: 'Lionel App',
+      appId: 'com.lourdjvke.lionel',
       version: '1.0.0',
       versionCode: 101,
       themeColor: '#D97757',
       keepAwake: true,
       username: 'lourdjvke',
       accessToken: 'gho_yourGitHubPersonalAccessToken',
-      repoId: 'larp-android-app-v6',
+      repo: 'larp-android-app-v6',
       splashScreen: { type: 'flat_color', backgroundColor: '#FAF8F5', duration: 2000, autoHide: true },
       iconVariants: [
         { id: 'default', name: 'Default Hero', isDefault: true, glyph: '⚽', backgroundColor: '#D97757', foregroundColor: '#FFF' },
@@ -76,7 +73,7 @@ name: 'My Configurable App',
 
   const data = await response.json();
   if (data.success) {
-    console.log('Direct APK Download URL:', data.downloadUrl); // => /api/larp/download?file=<configured-name>
+    console.log('Direct APK Download URL:', data.downloadUrl); // => /downloads/lionel.apk
     console.log('GitHub Actions Run URL:', data.githubBridge?.runUrl);
     window.location.href = data.downloadUrl; // Direct download in browser
   }
@@ -120,7 +117,7 @@ const response = await fetch('/api/larp/build', {
     version: '1.0.0',
     username: 'lourdjvke',
     accessToken: 'gho_yourToken',
-    repoId: 'my-custom-repo-name',
+    repo: 'my-custom-repo-name',
     zipBase64: 'UEsDBBQAAAAIAAA...[Base64 encoded zip archive content]...'
   })
 });
@@ -133,7 +130,7 @@ formData.append('config', JSON.stringify({
   appId: 'com.company.myapp',
   username: 'lourdjvke',
   accessToken: 'gho_yourToken',
-  repoId: 'my-custom-repo-name'
+  repo: 'my-custom-repo-name'
 }));
 
 const res = await fetch('/api/larp/build', { method: 'POST', body: formData });`;
@@ -210,12 +207,12 @@ const res = await fetch('/api/larp/build', { method: 'POST', body: formData });`
             <div className="p-4 bg-[#FAF8F5] border border-[#EAE6E1] rounded-2xl">
               <span className="text-[10px] font-bold text-[#8C867D] uppercase tracking-wider block">2. GitHub Middleman</span>
               <span className="font-mono text-xs font-bold text-[#1F1E1D] mt-1 block">username, accessToken, repo</span>
-              <p className="text-[11px] text-[#6B6661] mt-1">Send the repository name as <code>repoId</code>; the token is used only for this request and is never stored by the UI.</p>
+              <p className="text-[11px] text-[#6B6661] mt-1">Choose any repository under your account to execute GitHub Actions runner.</p>
             </div>
             <div className="p-4 bg-[#FAF8F5] border border-[#EAE6E1] rounded-2xl">
               <span className="text-[10px] font-bold text-[#8C867D] uppercase tracking-wider block">3. Direct Download</span>
               <span className="font-mono text-xs font-bold text-[#1F1E1D] mt-1 block">data.downloadUrl</span>
-              <p className="text-[11px] text-[#6B6661] mt-1">Returns a temporary API download URL using the configured app name (application/vnd.android.package-archive).</p>
+              <p className="text-[11px] text-[#6B6661] mt-1">Directly yields <code>/downloads/lionel.apk</code> served live over HTTP (application/vnd.android.package-archive).</p>
             </div>
           </div>
 

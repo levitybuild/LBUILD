@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(
     {
       name: 'LARP Native Engine Build API',
-      version: '2.0.0',
+      version: '2.1.0',
       description: 'Production Android APK & AAB Compilation Engine with Custom Icons & Open CORS Downloads',
       endpoints: {
         build: `${baseUrl}/api/larp/build`,
@@ -41,34 +41,34 @@ export async function GET(req: NextRequest) {
       },
       supportedIconSources: ['HTTP/HTTPS Image URLs', 'Data URIs (PNG, JPEG, WebP, SVG)', 'Direct Base64'],
       samplePayload: {
-        name: 'My Custom App',
-        appId: 'com.example.myapp',
+        name: 'Roulette',
+        appId: 'com.casino.roulette',
         version: '1.0.0',
         versionCode: 1,
-        themeColor: '#4F46E5',
+        themeColor: '#0F172A',
         fullscreen: false,
         keepAwake: true,
-        iconUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=512',
+        iconUrl: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=512',
         iconVariants: [
           {
             id: 'default',
-            name: 'Primary Indigo Icon',
-            imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=512',
+            name: 'Classic Red Casino Wheel',
+            imageUrl: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=512',
             isDefault: true,
-            backgroundColor: '#4F46E5',
+            backgroundColor: '#991B1B',
           },
           {
-            id: 'variant_gold',
-            name: 'Gold Elite Icon',
+            id: 'vip_gold',
+            name: 'VIP Gold Elite Wheel',
             imageUrl: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=512',
             isDefault: false,
-            backgroundColor: '#EAB308',
+            backgroundColor: '#D97706',
           },
         ],
         splashScreen: {
           backgroundColor: '#0F172A',
-          imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=512',
-          duration: 1800,
+          imageUrl: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=512',
+          duration: 1500,
           autoHide: true,
         },
         permissions: ['android.permission.INTERNET', 'android.permission.VIBRATE'],
@@ -184,10 +184,14 @@ export async function POST(req: NextRequest) {
       if (Array.isArray(body.permissions)) permissions = body.permissions;
       if (Array.isArray(body.files)) files = body.files;
 
-      username = body.username;
-      accessToken = body.accessToken || body.token;
-      repo = body.repo || body.repoName;
+      username = body.username || req.headers.get('x-github-username') || process.env.GITHUB_USERNAME || process.env.GITHUB_USER;
+      accessToken = body.accessToken || body.token || req.headers.get('x-github-token') || process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN || process.env.GH_TOKEN;
+      repo = body.repo || body.repoName || req.headers.get('x-github-repo') || process.env.GITHUB_REPO;
     }
+
+    if (!username) username = req.headers.get('x-github-username') || process.env.GITHUB_USERNAME || process.env.GITHUB_USER;
+    if (!accessToken) accessToken = req.headers.get('x-github-token') || process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN || process.env.GH_TOKEN;
+    if (!repo) repo = req.headers.get('x-github-repo') || process.env.GITHUB_REPO;
 
     // Sanitize package ID
     const sanitizedAppId = appId
@@ -285,14 +289,12 @@ export async function POST(req: NextRequest) {
       permissions: Array.from(new Set([...permissions, 'android.permission.INTERNET', 'android.permission.VIBRATE'])),
     };
 
-    // 1. Compile native Android application locally
-    const buildResult = await buildLarpApp(config);
-
-    // 2. If GitHub credentials provided, execute CI/CD build bridge
+    // 1. GITHUB DELEGATION IS THE DEFAULT BUILD PIPELINE (Optimized for Vercel & Serverless)
     let githubResult: any = null;
     if (username && accessToken) {
       try {
         const repoName = repo || `larp-android-${config.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+        console.log(`[LARP Build API] Default CI/CD Delegation: Dispatching to GitHub Actions (${username}/${repoName})...`);
         githubResult = await runGithubActionsBuild({
           username,
           token: accessToken,
@@ -310,18 +312,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Construct download URLs
-    const zipFilename = 'lionel_complete_release_bundle.zip';
-    const directZipUrl = `${baseUrl}/downloads/${zipFilename}`;
-    const downloadZipUrl = `${baseUrl}/api/larp/download?file=${zipFilename}`;
-    const directApkUrl = `${baseUrl}/downloads/lionel.apk`;
-    const downloadApkUrl = `${baseUrl}/api/larp/download?file=lionel.apk`;
-    const directAabUrl = `${baseUrl}/downloads/lionel_app_production_playstore.aab`;
-    const downloadAabUrl = `${baseUrl}/api/larp/download?file=lionel_app_production_playstore.aab`;
-    const directKeystoreUrl = `${baseUrl}/downloads/larp_release.keystore`;
-    const downloadKeystoreUrl = `${baseUrl}/api/larp/download?file=larp_release.keystore`;
+    // 2. Assemble complete release artifacts, project ZIP, and keystore
+    const buildResult = await buildLarpApp(config);
 
-    // 3. Direct Binary Stream Mode (Ideal for Vercel/Serverless blob downloads)
+    // Direct Binary Stream Mode (Ideal for Vercel/Serverless blob downloads)
     const format = req.nextUrl.searchParams.get('format') || '';
     const acceptHeader = req.headers.get('accept') || '';
     const wantsDirectBinary = format === 'zip' || format === 'blob' || format === 'binary' || acceptHeader === 'application/zip';
@@ -342,6 +336,16 @@ export async function POST(req: NextRequest) {
     }
 
     // Standard JSON Response with direct Base64 & Data URI for instant client Blob creation
+    const zipFilename = 'lionel_complete_release_bundle.zip';
+    const directZipUrl = `${baseUrl}/downloads/${zipFilename}`;
+    const downloadZipUrl = `${baseUrl}/api/larp/download?file=${zipFilename}`;
+    const directApkUrl = `${baseUrl}/downloads/lionel.apk`;
+    const downloadApkUrl = `${baseUrl}/api/larp/download?file=lionel.apk`;
+    const directAabUrl = `${baseUrl}/downloads/lionel_app_production_playstore.aab`;
+    const downloadAabUrl = `${baseUrl}/api/larp/download?file=lionel_app_production_playstore.aab`;
+    const directKeystoreUrl = `${baseUrl}/downloads/larp_release.keystore`;
+    const downloadKeystoreUrl = `${baseUrl}/api/larp/download?file=larp_release.keystore`;
+
     const zipBase64 = buildResult.zipBase64;
     const apkBase64 = buildResult.apkBase64;
     const dataUri = zipBase64 ? `data:application/zip;base64,${zipBase64}` : undefined;

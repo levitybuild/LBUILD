@@ -6,7 +6,7 @@
   'use strict';
 
   var isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
-  var currentThemeColor = "#D97757";
+  var currentThemeColor = "#0F172A";
   var currentIcon = "default";
   var isFullscreen = false;
 
@@ -302,4 +302,5 @@
   }
 
   window.LarpBridge = LarpBridge;
+  window.Larp = LarpBridge;
 })(window);

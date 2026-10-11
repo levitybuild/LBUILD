@@ -43,21 +43,14 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
 
   logs.push(`[GitHub Actions Bridge] Authenticated as GitHub user "${username}"`);
 
-  // Ensure public downloads directory exists
+  // Ensure public downloads directory exists if filesystem is writable
   const publicDownloadsDir = path.join(process.cwd(), 'public', 'downloads');
-  if (!fs.existsSync(publicDownloadsDir)) {
-    fs.mkdirSync(publicDownloadsDir, { recursive: true });
-  }
-
-  // Pre-compile local signed APK as high-reliability baseline
   try {
-    const localCompile = await compileGenuineAndroidApk(config, processedFiles, `lionel_${Date.now()}`);
-    fs.writeFileSync(path.join(publicDownloadsDir, apkFilename), localCompile.apkBuffer);
-    fs.writeFileSync(path.join(publicDownloadsDir, localCompile.apkFilename), localCompile.apkBuffer);
-    fs.writeFileSync(path.join(publicDownloadsDir, localCompile.keystoreFilename), localCompile.keystoreBuffer);
-    logs.push(`[Local Engine Baseline] Prepared initial "${apkFilename}" (${localCompile.apkBuffer.length} bytes)`);
-  } catch (err: any) {
-    logs.push(`[Local Engine Notice] ${err.message}`);
+    if (!fs.existsSync(publicDownloadsDir)) {
+      fs.mkdirSync(publicDownloadsDir, { recursive: true });
+    }
+  } catch (_) {
+    // Read-only filesystem in serverless/Vercel Lambda
   }
 
   const repoUrl = `https://github.com/${username}/${repoName}`;
