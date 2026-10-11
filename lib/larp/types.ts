@@ -7,6 +7,8 @@ export interface SplashConfig {
   fadeOutDuration: number;
   spinnerColor?: string;
   showSpinner?: boolean;
+  imageUrl?: string; // Custom splash logo/image URL (https://... or data:image/...)
+  imageBase64?: string; // Direct Base64 encoded PNG/JPEG
 }
 
 export interface IconVariant {
@@ -14,11 +16,11 @@ export interface IconVariant {
   name: string; // e.g. 'Fire Streak'
   isDefault: boolean;
   triggerCondition?: string; // e.g. 'streak >= 7' or 'theme == dark'
-  glyph: string; // icon symbol or text
-  imageData?: string; // data URL or base64-encoded PNG/JPEG/WebP image
-  imageMimeType?: string;
-  backgroundColor: string;
-  foregroundColor: string;
+  glyph?: string; // icon symbol or text fallback
+  imageUrl?: string; // Custom icon image URL (https://... or data:image/...)
+  imageBase64?: string; // Direct Base64 encoded PNG/JPEG
+  backgroundColor?: string;
+  foregroundColor?: string;
   description?: string;
 }
 
@@ -110,14 +112,6 @@ export interface LarpBuildResult {
     validityYears: number;
   };
   logs: string[];
-  downloadUrl?: string;
-  apkFilename?: string;
-  zipDownloadUrl?: string;
-  zipFilename?: string;
-  githubBridge?: {
-    downloadUrl?: string;
-    apkFilename?: string;
-    githubRunUrl?: string;
-    githubRepoUrl?: string;
-  };
+  zipBase64?: string;
+  apkBase64?: string;
 }

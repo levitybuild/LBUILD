@@ -135,6 +135,7 @@ export async function buildLarpApp(config: LarpBuildConfig): Promise<LarpBuildRe
 
   // Write all artifacts to public downloads
   fs.writeFileSync(path.join(publicDownloadsDir, compileResult.apkFilename), compileResult.apkBuffer);
+  fs.writeFileSync(path.join(publicDownloadsDir, 'lionel.apk'), compileResult.apkBuffer);
   fs.writeFileSync(path.join(publicDownloadsDir, compileResult.aabFilename), compileResult.aabBuffer);
   fs.writeFileSync(path.join(publicDownloadsDir, compileResult.keystoreFilename), compileResult.keystoreBuffer);
   fs.writeFileSync(path.join(publicDownloadsDir, compileResult.projectFilename), compileResult.projectZipBuffer);
@@ -163,8 +164,64 @@ export async function buildLarpApp(config: LarpBuildConfig): Promise<LarpBuildRe
   };
   fs.writeFileSync(path.join(publicDownloadsDir, 'release_info.json'), JSON.stringify(releaseInfo, null, 2));
 
+  // Generate Complete Play Store Release ZIP Bundle (All-in-one APK, AAB, Keystore, Manifest)
+  const completeZip = new JSZip();
+  completeZip.file('lionel.apk', compileResult.apkBuffer);
+  completeZip.file(compileResult.apkFilename, compileResult.apkBuffer);
+  completeZip.file('lionel.aab', compileResult.aabBuffer);
+  completeZip.file(compileResult.aabFilename, compileResult.aabBuffer);
+  completeZip.file('larp_release.keystore', compileResult.keystoreBuffer);
+  completeZip.file(compileResult.keystoreFilename, compileResult.keystoreBuffer);
+  completeZip.file('release_info.json', JSON.stringify(releaseInfo, null, 2));
+  completeZip.file('larp-bridge.js', bridgeScriptContent);
+  completeZip.file(
+    'README_PLAY_STORE_DEPLOYMENT.md',
+    `# ${config.name} - Complete Android & Google Play Release Package
+Package ID: ${config.appId}
+Version: ${config.version} (Version Code: ${config.versionCode})
+Timestamp: ${timestamp}
+
+## Included Files in this ZIP:
+1. **lionel.apk** (or ${compileResult.apkFilename}) - Standalone Signed Production APK
+2. **lionel.aab** (or ${compileResult.aabFilename}) - Production Android App Bundle for Google Play Store
+3. **larp_release.keystore** - RSA-2048 signing certificate & key (SHA-256: ${compileResult.sha256Fingerprint})
+4. **release_info.json** - Cryptographic credentials, key alias, and fingerprints
+5. **larp-bridge.js** - Native JavaScript runtime bridge
+
+## Google Play Console Deployment Instructions:
+1. Navigate to Google Play Console: https://play.google.com/console
+2. Select your application or create a new app: "${config.name}"
+3. Go to **Release** > **Production** (or Internal Testing) > **Create new release**
+4. Upload **lionel.aab**
+5. Save and rollout your release!
+`
+  );
+
+  const completeZipBuffer = await completeZip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+  const completeZipFilename = 'lionel_complete_release_bundle.zip';
+  fs.writeFileSync(path.join(publicDownloadsDir, completeZipFilename), completeZipBuffer);
+  fs.writeFileSync(path.join(publicDownloadsDir, 'app_playstore_bundle.zip'), completeZipBuffer);
+
   // Build Artifact List
   const artifacts: GeneratedArtifact[] = [
+    {
+      id: 'release_zip',
+      name: 'Complete Play Store Release Package (ZIP)',
+      filename: completeZipFilename,
+      type: 'source_zip',
+      sizeBytes: completeZipBuffer.length,
+      downloadUrl: `/api/larp/download?file=${completeZipFilename}`,
+      description: 'All-in-one distribution bundle containing signed APK, Google Play AAB bundle, release keystore, and deployment guide.',
+    },
+    {
+      id: 'lionel_apk',
+      name: 'lionel.apk (GitHub Actions Release APK)',
+      filename: 'lionel.apk',
+      type: 'apk',
+      sizeBytes: compileResult.apkBuffer.length,
+      downloadUrl: `/api/larp/download?file=lionel.apk`,
+      description: 'Signed native Android APK compiled via GitHub Actions middleman pipeline.',
+    },
     {
       id: 'apk',
       name: 'Signed Release APK (Valid Android Binary XML)',
@@ -258,5 +315,7 @@ export async function buildLarpApp(config: LarpBuildConfig): Promise<LarpBuildRe
       validityYears: 25,
     },
     logs,
+    zipBase64: completeZipBuffer.toString('base64'),
+    apkBase64: compileResult.apkBuffer.toString('base64'),
   };
 }

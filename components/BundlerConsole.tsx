@@ -1,7 +1,32 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Package, ShieldCheck, Smartphone, Maximize2, Palette, Sparkles, Check, Plus, Trash2, RefreshCw, Code, Download, Play, Eye, GitBranch, Upload } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import {
+  Package,
+  ShieldCheck,
+  Smartphone,
+  Maximize2,
+  Palette,
+  Sparkles,
+  Check,
+  Plus,
+  Trash2,
+  RefreshCw,
+  Code,
+  Download,
+  Play,
+  Eye,
+  GitBranch,
+  Upload,
+  Copy,
+  CheckCircle2,
+  Image as ImageIcon,
+  Terminal,
+  ExternalLink,
+  Flame,
+  Zap,
+  Box,
+} from 'lucide-react';
 import { LarpBuildConfig, LarpBuildResult, IconVariant, StaticFile } from '@/lib/larp/types';
 import { SAMPLE_TEMPLATES, SampleTemplate } from '@/lib/larp/sample-templates';
 
@@ -11,7 +36,6 @@ interface BundlerConsoleProps {
     html: string;
     themeColor: string;
     fullscreen: boolean;
-    appName: string;
     activeIconId: string;
     iconVariants: IconVariant[];
   }) => void;
@@ -38,125 +62,109 @@ export function BundlerConsole({
   // Selected template
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('streak_habit');
 
-  // Form State
-  const [appId, setAppId] = useState<string>('com.larp.streakhero');
-  const [appName, setAppName] = useState<string>('StreakHero');
+  // App Identity
+  const [appId, setAppId] = useState<string>('com.lourdjvke.lionel');
+  const [appName, setAppName] = useState<string>('Lionel App');
   const [version, setVersion] = useState<string>('1.0.0');
   const [versionCode, setVersionCode] = useState<number>(101);
   const [fullscreen, setFullscreen] = useState<boolean>(false);
   const [themeColor, setThemeColor] = useState<string>('#D97757');
   const [watchThemeColor, setWatchThemeColor] = useState<boolean>(true);
-  const [githubUsername, setGithubUsername] = useState<string>('');
-  const [githubToken, setGithubToken] = useState<string>('');
-  const [githubRepo, setGithubRepo] = useState<string>('');
   const [keepAwake, setKeepAwake] = useState<boolean>(true);
-  const [defaultIconName, setDefaultIconName] = useState<string>('');
 
-  // Splash Screen
-  const [splashType, setSplashType] = useState<'flat_color' | 'custom_icon'>('flat_color');
+  // GitHub CI/CD Bridge
+  const [githubUsername, setGithubUsername] = useState<string>('lourdjvke');
+  const [githubToken, setGithubToken] = useState<string>('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');
+  const [githubRepo, setGithubRepo] = useState<string>('larp-android-app-v6');
+
+  // Splash Screen Config
+  const [splashType, setSplashType] = useState<'flat_color' | 'custom_icon' | 'full_image'>('custom_icon');
   const [splashBgColor, setSplashBgColor] = useState<string>('#FAF8F5');
-  const [splashDuration, setSplashDuration] = useState<number>(2000);
+  const [splashDuration, setSplashDuration] = useState<number>(1500);
   const [splashAutoHide, setSplashAutoHide] = useState<boolean>(true);
+  const [splashImageUrl, setSplashImageUrl] = useState<string>(
+    'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=256'
+  );
+  const [splashImageBase64, setSplashImageBase64] = useState<string>('');
 
-  // Dynamic Icon Variants
+  // Dynamic Icon Variants (customizable with own image URL, Base64, or custom ID)
   const [iconVariants, setIconVariants] = useState<IconVariant[]>([
     {
       id: 'default',
-      name: 'Classic Hero',
+      name: 'Primary Launcher Icon',
       isDefault: true,
-      glyph: '🦉',
+      glyph: '⚡',
+      imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=192',
       backgroundColor: '#D97757',
       foregroundColor: '#FFFFFF',
-      description: 'Standard orange mascot avatar',
+      description: 'Default Android home-screen icon',
     },
     {
       id: 'streak_fire',
-      name: 'Fire Streak',
+      name: 'Fire Streak Alternative',
       isDefault: false,
       glyph: '🔥',
+      imageUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=192',
       backgroundColor: '#EA580C',
       foregroundColor: '#FFFFFF',
       triggerCondition: 'streak >= 7 days',
-      description: 'Unlocked on 7-day learning streak',
+      description: 'Dynamic icon for active user streaks',
     },
     {
       id: 'stealth_dark',
-      name: 'Stealth Pro',
+      name: 'Nocturnal Dark Icon',
       isDefault: false,
-      glyph: '⚡',
+      glyph: '🌙',
+      imageUrl: '',
       backgroundColor: '#18181B',
       foregroundColor: '#FACC15',
       triggerCondition: 'theme == dark',
-      description: 'High-contrast nocturnal badge',
-    },
-    {
-      id: 'golden_master',
-      name: 'Golden Champion',
-      isDefault: false,
-      glyph: '🏆',
-      backgroundColor: '#CA8A04',
-      foregroundColor: '#FFFFFF',
-      triggerCondition: 'streak >= 30 days',
-      description: '30-day champion emblem',
+      description: 'High-contrast nocturnal icon alias',
     },
   ]);
+
+  // Active editing icon variant index
+  const [editingVariantIndex, setEditingVariantIndex] = useState<number>(0);
 
   // Permissions
   const [permissions, setPermissions] = useState<string[]>([
     'android.permission.INTERNET',
-    'android.permission.CAMERA',
     'android.permission.POST_NOTIFICATIONS',
     'android.permission.VIBRATE',
   ]);
 
   // Code editor & ZIP bundle upload
-  const [activeCodeFile, setActiveCodeFile] = useState<string>('index.html');
   const [codeContent, setCodeContent] = useState<string>(SAMPLE_TEMPLATES[0].files[0].content);
   const [uploadedZipBase64, setUploadedZipBase64] = useState<string | null>(null);
   const [uploadedZipName, setUploadedZipName] = useState<string | null>(null);
   const [buildLogs, setBuildLogs] = useState<string[]>([]);
   const [autoDetectNotice, setAutoDetectNotice] = useState<string | null>(null);
 
-  const handleDefaultIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
-    setAutoDetectNotice('Use a PNG, JPEG, or WebP image for the app icon.');
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      setAutoDetectNotice('App icon must be 2 MB or smaller.');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const imageData = String(reader.result);
-      setDefaultIconName(file.name);
-      setIconVariants(prev => {
-        const nextVariants = prev.map((variant, index) => index === 0
-          ? { ...variant, imageData, imageMimeType: file.type }
-          : variant);
-        onPreviewUpdate({ html: codeContent, themeColor, fullscreen, appName, activeIconId: nextVariants[0].id, iconVariants: nextVariants });
-        return nextVariants;
-      });
-      setAutoDetectNotice(`Using ${file.name} as the default launcher icon.`);
-      setTimeout(() => setAutoDetectNotice(null), 4000);
-    };
-    reader.readAsDataURL(file);
-  };
+  // Payload viewer tab
+  const [payloadTab, setPayloadTab] = useState<'js' | 'json' | 'curl'>('js');
+  const [isPayloadCopied, setIsPayloadCopied] = useState<boolean>(false);
+  const [isGuideCopied, setIsGuideCopied] = useState<boolean>(false);
+  const originUrl = React.useSyncExternalStore(
+    () => () => {},
+    () => (typeof window !== 'undefined' ? window.location.origin : ''),
+    () => ''
+  );
 
-  const handleZipUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadedZipName(file.name);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const b64 = reader.result as string;
-      setUploadedZipBase64(b64);
-      setAutoDetectNotice(`Loaded multi-file ZIP package: ${file.name}`);
-      setTimeout(() => setAutoDetectNotice(null), 4000);
-    };
-    reader.readAsDataURL(file);
+  const effectiveOrigin = originUrl || (typeof window !== 'undefined' ? window.location.origin : 'https://ais-dev-tnkazkbrm2nbsbh6tandtv-524636078991.europe-west2.run.app');
+  const apiEndpointUrl = `${effectiveOrigin}/api/larp/build`;
+  const downloadApiUrl = `${effectiveOrigin}/api/larp/download`;
+
+  // Sync with simulator preview
+  const syncPreview = (updates?: Partial<{ html: string; themeColor: string; fullscreen: boolean; variants: IconVariant[] }>) => {
+    const vars = updates?.variants ?? iconVariants;
+    const defaultVar = vars.find(v => v.isDefault) || vars[0];
+    onPreviewUpdate({
+      html: updates?.html ?? codeContent,
+      themeColor: updates?.themeColor ?? themeColor,
+      fullscreen: updates?.fullscreen ?? fullscreen,
+      activeIconId: defaultVar?.id || 'default',
+      iconVariants: vars,
+    });
   };
 
   // Handle template switch
@@ -171,31 +179,31 @@ if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
     setFullscreen(tpl.fullscreen);
     setCodeContent(tpl.files[0].content);
 
-    onPreviewUpdate({
+    syncPreview({
       html: tpl.files[0].content,
-      appName: tpl.name,
       themeColor: tpl.themeColor,
       fullscreen: tpl.fullscreen,
-      activeIconId: iconVariants[0].id,
-      iconVariants,
     });
   };
 
-  // Sync state with simulator preview
-  const syncPreview = (updates?: Partial<{ html: string; themeColor: string; fullscreen: boolean }>) => {
-    onPreviewUpdate({
-      html: updates?.html ?? codeContent,
-      appName,
-      themeColor: updates?.themeColor ?? themeColor,
-      fullscreen: updates?.fullscreen ?? fullscreen,
-      activeIconId: iconVariants[0].id,
-      iconVariants,
-    });
+  // ZIP upload
+  const handleZipUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadedZipName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const b64 = reader.result as string;
+      setUploadedZipBase64(b64);
+      setAutoDetectNotice(`Loaded multi-file ZIP archive (${file.name})`);
+      setTimeout(() => setAutoDetectNotice(null), 4000);
+    };
+    reader.readAsDataURL(file);
   };
 
-  // Auto-detect permissions from code
+  // Auto-detect permissions
   const handleAutoDetect = async () => {
-    setAutoDetectNotice('Analyzing static DOM & JavaScript APIs...');
+    setAutoDetectNotice('Analyzing DOM tags and JS APIs...');
     try {
       const res = await fetch('/api/larp/analyze', {
         method: 'POST',
@@ -212,24 +220,348 @@ if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
           setThemeColor(data.detectedThemeColor);
           syncPreview({ themeColor: data.detectedThemeColor });
         }
-        setAutoDetectNotice(`Detected ${data.detectedPermissions.length} permissions & theme settings.`);
+        setAutoDetectNotice(`Auto-configured ${data.detectedPermissions.length} permissions & theme.`);
         setTimeout(() => setAutoDetectNotice(null), 4000);
       }
-    } catch (e) {
-      setAutoDetectNotice('Auto-detection error.');
+    } catch {
+      setAutoDetectNotice('Auto-detection notice: using standard set.');
       setTimeout(() => setAutoDetectNotice(null), 3000);
     }
   };
 
+  // Icon Variant operations
+  const handleUpdateVariant = (index: number, updates: Partial<IconVariant>) => {
+    setIconVariants(prev => {
+      const next = prev.map((v, i) => (i === index ? { ...v, ...updates } : v));
+      syncPreview({ variants: next });
+      return next;
+    });
+  };
+
+  const handleSetDefaultVariant = (index: number) => {
+    setIconVariants(prev => {
+      const next = prev.map((v, i) => ({
+        ...v,
+        isDefault: i === index,
+      }));
+      syncPreview({ variants: next });
+      return next;
+    });
+  };
+
+  const handleAddVariant = () => {
+    const nextNum = iconVariants.length + 1;
+    const newVariant: IconVariant = {
+      id: `variant_${nextNum}`,
+      name: `Custom Variant ${nextNum}`,
+      isDefault: false,
+      glyph: '⭐',
+      backgroundColor: themeColor,
+      foregroundColor: '#FFFFFF',
+      imageUrl: '',
+      imageBase64: '',
+      description: 'Alternative app launcher icon',
+    };
+    const nextList = [...iconVariants, newVariant];
+    setIconVariants(nextList);
+    setEditingVariantIndex(nextList.length - 1);
+    syncPreview({ variants: nextList });
+  };
+
+  const handleRemoveVariant = (index: number) => {
+    if (iconVariants.length <= 1) return;
+    const nextList = iconVariants.filter((_, i) => i !== index);
+    if (!nextList.some(v => v.isDefault)) {
+      nextList[0].isDefault = true;
+    }
+    setIconVariants(nextList);
+    setEditingVariantIndex(Math.max(0, index - 1));
+    syncPreview({ variants: nextList });
+  };
+
+  const handleVariantImageUpload = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const b64 = reader.result as string;
+      handleUpdateVariant(index, { imageBase64: b64 });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSplashImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const b64 = reader.result as string;
+      setSplashImageBase64(b64);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const togglePermission = (permId: string) => {
+    if (permId === 'android.permission.INTERNET') return;
+    setPermissions(prev =>
+      prev.includes(permId) ? prev.filter(p => p !== permId) : [...prev, permId]
+    );
+  };
+
+  // Compile Current Exact Payload
+  const currentBuildPayload = useMemo(() => {
+    return {
+      name: appName,
+      appId,
+      version,
+      versionCode,
+      themeColor,
+      watchThemeColor,
+      fullscreen,
+      keepAwake,
+      username: githubUsername,
+      accessToken: githubToken,
+      repo: githubRepo,
+      permissions,
+      splashScreen: {
+        type: splashType,
+        backgroundColor: splashBgColor,
+        duration: splashDuration,
+        autoHide: splashAutoHide,
+        imageUrl: splashImageUrl || undefined,
+        imageBase64: splashImageBase64 ? splashImageBase64.substring(0, 36) + '...[base64]' : undefined,
+      },
+      iconVariants: iconVariants.map(v => ({
+        id: v.id,
+        name: v.name,
+        isDefault: v.isDefault,
+        imageUrl: v.imageUrl || undefined,
+        imageBase64: v.imageBase64 ? v.imageBase64.substring(0, 36) + '...[base64]' : undefined,
+        backgroundColor: v.backgroundColor,
+        triggerCondition: v.triggerCondition || undefined,
+      })),
+      staticBundle: {
+        entrypoint: 'index.html',
+        files: uploadedZipBase64
+          ? [{ path: '[ZIP archive bundle active]', content: uploadedZipName || 'bundle.zip' }]
+          : [{ path: 'index.html', content: codeContent.length > 120 ? codeContent.substring(0, 100) + '... (html)' : codeContent }],
+      },
+    };
+  }, [
+    appName,
+    appId,
+    version,
+    versionCode,
+    themeColor,
+    watchThemeColor,
+    fullscreen,
+    keepAwake,
+    githubUsername,
+    githubToken,
+    githubRepo,
+    permissions,
+    splashType,
+    splashBgColor,
+    splashDuration,
+    splashAutoHide,
+    splashImageUrl,
+    splashImageBase64,
+    iconVariants,
+    uploadedZipBase64,
+    uploadedZipName,
+    codeContent,
+  ]);
+
+  // Code representations for AI / Developers
+  const exactJsCode = useMemo(() => {
+    const payloadForCode = {
+      name: appName,
+      appId,
+      version,
+      versionCode,
+      themeColor,
+      watchThemeColor,
+      fullscreen,
+      keepAwake,
+      username: githubUsername,
+      accessToken: githubToken,
+      repo: githubRepo,
+      permissions,
+      splashScreen: {
+        type: splashType,
+        backgroundColor: splashBgColor,
+        duration: splashDuration,
+        autoHide: splashAutoHide,
+        imageUrl: splashImageUrl || undefined,
+        imageBase64: splashImageBase64 || undefined,
+      },
+      iconVariants: iconVariants.map(v => ({
+        id: v.id,
+        name: v.name,
+        isDefault: v.isDefault,
+        imageUrl: v.imageUrl || undefined,
+        imageBase64: v.imageBase64 || undefined,
+        backgroundColor: v.backgroundColor,
+        triggerCondition: v.triggerCondition || undefined,
+      })),
+      staticBundle: {
+        entrypoint: 'index.html',
+        files: [{ path: 'index.html', content: codeContent }],
+      },
+      zipBase64: uploadedZipBase64 || undefined,
+    };
+
+    return `// ============================================================================
+// EXACT BUILD & DOWNLOAD INTEGRATION CODE (OPEN CORS ENABLED)
+// Target Build API: ${apiEndpointUrl}
+// Download Interceptor: ${downloadApiUrl}
+// ============================================================================
+
+async function triggerLarpNativeBuild() {
+  const endpoint = "${apiEndpointUrl}";
+  const payload = ${JSON.stringify(payloadForCode, null, 2)};
+
+  console.log('[LARP] Dispatching build request to:', endpoint);
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json();
+  if (!data.success) {
+    console.error('❌ Build failed:', data.error);
+    throw new Error(data.error);
+  }
+
+  console.log('✅ Android Build Success!');
+  console.log('📦 Complete Play Store ZIP:', data.zipDownloadUrl);
+  console.log('📱 Signed Release APK:', data.downloadUrl);
+
+  // 1. In-Memory Client Blob URL Generation (100% reliable on Vercel / serverless without server disk)
+  let downloadUrl;
+  if (data.zipBase64) {
+    const binary = atob(data.zipBase64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: 'application/zip' });
+    downloadUrl = URL.createObjectURL(blob);
+    console.log('⚡ Client Blob URL created in-memory:', downloadUrl);
+  } else {
+    downloadUrl = "${effectiveOrigin}" + (data.downloadUrl || "/api/larp/download?file=lionel_complete_release_bundle.zip");
+  }
+
+  // 2. Trigger automatic browser download from Blob URL
+  const link = document.createElement('a');
+  link.href = downloadUrl;
+  link.download = "${appName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_complete_release_bundle.zip";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  return data;
+}
+
+// Alternative: Direct Binary Stream -> Blob
+// const res = await fetch("${apiEndpointUrl}?format=zip", { method: 'POST', body: JSON.stringify(payload) });
+// const blob = await res.blob();
+// const directBlobUrl = URL.createObjectURL(blob);
+
+triggerLarpNativeBuild();`;
+  }, [
+    appName,
+    appId,
+    version,
+    versionCode,
+    themeColor,
+    watchThemeColor,
+    fullscreen,
+    keepAwake,
+    githubUsername,
+    githubToken,
+    githubRepo,
+    permissions,
+    splashType,
+    splashBgColor,
+    splashDuration,
+    splashAutoHide,
+    splashImageUrl,
+    splashImageBase64,
+    iconVariants,
+    uploadedZipBase64,
+    codeContent,
+    apiEndpointUrl,
+    downloadApiUrl,
+    effectiveOrigin,
+  ]);
+
+  const exactCurlCommand = useMemo(() => {
+    const compactPayload = {
+      name: appName,
+      appId,
+      version,
+      versionCode,
+      themeColor,
+      keepAwake,
+      username: githubUsername,
+      accessToken: githubToken,
+      repo: githubRepo,
+      splashScreen: {
+        type: splashType,
+        backgroundColor: splashBgColor,
+        duration: splashDuration,
+        imageUrl: splashImageUrl || undefined,
+      },
+      iconVariants: iconVariants.map(v => ({
+        id: v.id,
+        name: v.name,
+        isDefault: v.isDefault,
+        imageUrl: v.imageUrl || undefined,
+        backgroundColor: v.backgroundColor,
+      })),
+      staticBundle: {
+        entrypoint: 'index.html',
+        files: [{ path: 'index.html', content: codeContent }],
+      },
+    };
+
+    return `curl -X POST "${apiEndpointUrl}" \\
+  -H "Content-Type: application/json" \\
+  -d '${JSON.stringify(compactPayload, null, 2).replace(/'/g, "'\\''")}'`;
+  }, [
+    appName,
+    appId,
+    version,
+    versionCode,
+    themeColor,
+    keepAwake,
+    githubUsername,
+    githubToken,
+    githubRepo,
+    splashType,
+    splashBgColor,
+    splashDuration,
+    splashImageUrl,
+    iconVariants,
+    codeContent,
+    apiEndpointUrl,
+  ]);
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setIsPayloadCopied(true);
+    setTimeout(() => setIsPayloadCopied(false), 2000);
+  };
+
   // Trigger Build
   const handleRunBuild = async () => {
-    if (!githubUsername.trim() || !githubToken.trim() || !githubRepo.trim()) {
-      setBuildLogs(['[Error] Enter your GitHub username, access token, and repository ID before building.']);
-      return;
-    }
-
     setIsBuilding(true);
-    setBuildLogs(['[LARP CLI] Initializing build request...', `[Config] Target: ${appId} (${appName})`]);
+    setBuildLogs([
+      `[LARP API Middleman] Starting build pipeline for "${appName}" (${appId})...`,
+      `[Config] Version ${version} (Code ${versionCode}), Theme: ${themeColor}, Stay Awake: ${keepAwake ? 'Enabled' : 'Disabled'}`,
+      `[Icons] Configuring ${iconVariants.length} dynamic icon variants...`,
+      `[GitHub CI/CD] Connecting as "${githubUsername}" on repository "${githubRepo}"...`,
+    ]);
 
     const configPayload: LarpBuildConfig = {
       appId,
@@ -240,15 +572,33 @@ if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
       themeColor,
       watchThemeColor,
       permissions,
+      keepAwake,
+      username: githubUsername,
+      accessToken: githubToken,
+      repo: githubRepo,
+      repoId: githubRepo,
+      repoName: githubRepo,
       splashScreen: {
         type: splashType,
         backgroundColor: splashBgColor,
         duration: splashDuration,
         autoHide: splashAutoHide,
-        fadeInDuration: 300,
-        fadeOutDuration: 400,
+        fadeInDuration: 200,
+        fadeOutDuration: 300,
+        imageUrl: splashImageUrl || undefined,
+        imageBase64: splashImageBase64 || undefined,
       },
-      iconVariants,
+      iconVariants: iconVariants.map(v => ({
+        id: v.id,
+        name: v.name,
+        isDefault: v.isDefault,
+        imageUrl: v.imageUrl || undefined,
+        imageBase64: v.imageBase64 || undefined,
+        backgroundColor: v.backgroundColor,
+        foregroundColor: v.foregroundColor,
+        glyph: v.glyph,
+        triggerCondition: v.triggerCondition,
+      })),
       plugins: {
         statusBar: true,
         splashScreen: true,
@@ -268,24 +618,16 @@ if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
       },
       staticBundle: {
         entrypoint: 'index.html',
-        files: [
-          { path: 'index.html', content: codeContent },
-        ],
+        files: [{ path: 'index.html', content: codeContent }],
       },
       zipBase64: uploadedZipBase64 || undefined,
-      keepAwake,
     };
 
     try {
       const res = await fetch('/api/larp/build', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...configPayload,
-          username: githubUsername,
-          accessToken: githubToken,
-          repoId: githubRepo,
-        }),
+        body: JSON.stringify(configPayload),
       });
 
       const data: LarpBuildResult = await res.json();
@@ -293,7 +635,10 @@ if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
         setBuildLogs(data.logs || ['Build completed successfully.']);
         onBuildComplete(data);
       } else {
-        setBuildLogs(prev => [...prev, '[Error] Build failed: ' + (data as unknown as { error: string }).error]);
+        setBuildLogs(prev => [
+          ...prev,
+          '[Error] Build failed: ' + (data as unknown as { error: string }).error,
+        ]);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown network failure';
@@ -303,12 +648,7 @@ if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
     }
   };
 
-  const togglePermission = (permId: string) => {
-    if (permId === 'android.permission.INTERNET') return; // required
-    setPermissions(prev =>
-      prev.includes(permId) ? prev.filter(p => p !== permId) : [...prev, permId]
-    );
-  };
+  const activeEditingVariant = iconVariants[editingVariantIndex] || iconVariants[0];
 
   return (
     <section id="bundler" className="py-12 border-b border-[#EAE6E1]">
@@ -316,13 +656,13 @@ if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
         {/* Section Header */}
         <div className="max-w-3xl mb-8">
           <div className="text-xs font-semibold tracking-wider text-[#D97757] uppercase mb-1">
-            Interactive App Bundler
+            Production Compiler & Configuration Engine
           </div>
           <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-[#1F1E1D]">
-            One-Click Native Capacitor App Compiler
+            Nuanced Native Android APK Generator
           </h2>
           <p className="mt-2 text-sm text-[#6B6661] leading-relaxed">
-            Configure package ID, dynamic theme tracking, true fullscreen, splash screens, and Duolingo-style launcher icons. Generates signed APK, Play Store AAB, and complete Capacitor 6 source code.
+            Every parameter is 100% customizable: specify your own image URLs or upload custom icons, define dynamic icon variant IDs, set branded splash screens, enable Stay Awake, and observe the exact live API payload below.
           </p>
         </div>
 
@@ -382,19 +722,19 @@ if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
                     value={appName}
                     onChange={e => setAppName(e.target.value)}
                     className="w-full px-3 py-2 text-xs bg-[#FAF8F5] border border-[#EAE6E1] rounded-lg text-[#1F1E1D] focus:outline-none focus:border-[#D97757]"
-                    placeholder="My Native App"
+                    placeholder="Lionel App"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-[#6B6661] mb-1">
-                    Package Identifier (Bundle ID)
+                    Package Identifier (Android ApplicationId)
                   </label>
                   <input
                     type="text"
                     value={appId}
                     onChange={e => setAppId(e.target.value)}
                     className="w-full px-3 py-2 text-xs bg-[#FAF8F5] border border-[#EAE6E1] rounded-lg text-[#1F1E1D] font-mono focus:outline-none focus:border-[#D97757]"
-                    placeholder="com.company.app"
+                    placeholder="com.lourdjvke.lionel"
                   />
                 </div>
                 <div>
@@ -406,38 +746,436 @@ if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
                     value={version}
                     onChange={e => setVersion(e.target.value)}
                     className="w-full px-3 py-2 text-xs bg-[#FAF8F5] border border-[#EAE6E1] rounded-lg text-[#1F1E1D] font-mono focus:outline-none focus:border-[#D97757]"
+                    placeholder="1.0.0"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-[#6B6661] mb-1">
-                    Version Code (Play Store)
+                    Version Code (Integer)
                   </label>
                   <input
                     type="number"
                     value={versionCode}
                     onChange={e => setVersionCode(Number(e.target.value))}
                     className="w-full px-3 py-2 text-xs bg-[#FAF8F5] border border-[#EAE6E1] rounded-lg text-[#1F1E1D] font-mono focus:outline-none focus:border-[#D97757]"
+                    placeholder="101"
                   />
                 </div>
               </div>
             </div>
 
-            {/* 2. Fullscreen & Theme Colors */}
+            {/* 2. Dynamic Launcher Icons Studio (Nuanced with Custom Image URLs & Base64) */}
+            <div className="p-6 bg-white border border-[#EAE6E1] rounded-2xl space-y-5 shadow-xs">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-sm text-[#1F1E1D] flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[#D97757]" />
+                  <span>Custom App Icons & Dynamic Variants</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={handleAddVariant}
+                  className="px-2.5 py-1 text-xs font-semibold text-[#D97757] bg-[#D97757]/10 hover:bg-[#D97757]/15 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Icon Variant</span>
+                </button>
+              </div>
+
+              <p className="text-xs text-[#6B6661] leading-relaxed">
+                Provide custom image URLs (HTTPS) or upload image files (Base64) for your launcher icons. Define unique variant IDs so web pages can dynamically switch the Android home-screen icon at runtime via <code className="text-[#D97757] font-mono">window.Larp.setIcon(variantId)</code>.
+              </p>
+
+              {/* Variant Selector Tabs */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                {iconVariants.map((v, idx) => (
+                  <button
+                    key={v.id + idx}
+                    type="button"
+                    onClick={() => setEditingVariantIndex(idx)}
+                    className={`px-3 py-2 rounded-xl text-xs font-medium shrink-0 flex items-center gap-2 border transition-all cursor-pointer ${
+                      editingVariantIndex === idx
+                        ? 'border-[#D97757] bg-[#D97757]/10 text-[#1F1E1D] font-semibold'
+                        : 'border-[#EAE6E1] bg-[#FAF8F5] text-[#6B6661] hover:bg-white'
+                    }`}
+                  >
+                    <div
+                      className="w-5 h-5 rounded-md flex items-center justify-center text-[11px] overflow-hidden shrink-0 border border-black/10"
+                      style={{ backgroundColor: v.backgroundColor }}
+                    >
+                      {v.imageUrl || v.imageBase64 ? (
+                        <img
+                          src={v.imageUrl || v.imageBase64}
+                          alt={v.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span>{v.glyph || '★'}</span>
+                      )}
+                    </div>
+                    <span>{v.name}</span>
+                    {v.isDefault && (
+                      <span className="text-[9px] bg-[#D97757] text-white px-1 py-0.2 rounded font-mono font-medium">
+                        Default
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {/* Active Editing Variant Detail Form */}
+              {activeEditingVariant && (
+                <div className="p-4 bg-[#FAF8F5] border border-[#EAE6E1] rounded-xl space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#1F1E1D] flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4 text-[#D97757]" />
+                      <span>Configuring: {activeEditingVariant.name}</span>
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {!activeEditingVariant.isDefault && (
+                        <button
+                          type="button"
+                          onClick={() => handleSetDefaultVariant(editingVariantIndex)}
+                          className="text-[11px] text-[#D97757] hover:underline font-semibold cursor-pointer"
+                        >
+                          Make Default Launcher
+                        </button>
+                      )}
+                      {iconVariants.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveVariant(editingVariantIndex)}
+                          className="text-red-500 hover:text-red-700 p-1 cursor-pointer"
+                          title="Remove variant"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-medium text-[#6B6661] mb-1">
+                        Variant Identifier (ID used by web app)
+                      </label>
+                      <input
+                        type="text"
+                        value={activeEditingVariant.id}
+                        onChange={e =>
+                          handleUpdateVariant(editingVariantIndex, { id: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') })
+                        }
+                        className="w-full px-2.5 py-1.5 text-xs bg-white border border-[#EAE6E1] rounded-lg font-mono text-[#1F1E1D]"
+                        placeholder="default, streak_fire, gold_mode..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium text-[#6B6661] mb-1">
+                        Display Label
+                      </label>
+                      <input
+                        type="text"
+                        value={activeEditingVariant.name}
+                        onChange={e => handleUpdateVariant(editingVariantIndex, { name: e.target.value })}
+                        className="w-full px-2.5 py-1.5 text-xs bg-white border border-[#EAE6E1] rounded-lg text-[#1F1E1D]"
+                        placeholder="e.g. Amber Pro"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Custom Image URL vs Base64 Upload */}
+                  <div>
+                    <label className="block text-[11px] font-medium text-[#6B6661] mb-1">
+                      Custom Icon Image URL (HTTPS)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="url"
+                        value={activeEditingVariant.imageUrl || ''}
+                        onChange={e =>
+                          handleUpdateVariant(editingVariantIndex, {
+                            imageUrl: e.target.value,
+                            imageBase64: '',
+                          })
+                        }
+                        className="w-full px-2.5 py-1.5 text-xs bg-white border border-[#EAE6E1] rounded-lg text-[#1F1E1D] font-mono"
+                        placeholder="https://example.com/icons/my_icon.png"
+                      />
+                      <label className="cursor-pointer px-2.5 py-1.5 text-xs font-semibold text-[#D97757] bg-[#D97757]/10 hover:bg-[#D97757]/15 rounded-lg flex items-center gap-1.5 shrink-0 transition-colors">
+                        <Upload className="w-3 h-3" />
+                        <span>Upload File</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={e => handleVariantImageUpload(editingVariantIndex, e)}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                    {activeEditingVariant.imageBase64 && (
+                      <div className="text-[10px] text-emerald-600 mt-1 flex items-center justify-between">
+                        <span>Using direct Base64 encoded image data</span>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateVariant(editingVariantIndex, { imageBase64: '' })}
+                          className="text-red-500 hover:underline cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Colors & Trigger Condition */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-medium text-[#6B6661] mb-1">
+                        Adaptive Icon Background Color
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={activeEditingVariant.backgroundColor || '#D97757'}
+                          onChange={e =>
+                            handleUpdateVariant(editingVariantIndex, { backgroundColor: e.target.value })
+                          }
+                          className="w-8 h-8 rounded-lg border border-[#EAE6E1] cursor-pointer p-0.5 bg-white shrink-0"
+                        />
+                        <input
+                          type="text"
+                          value={activeEditingVariant.backgroundColor || '#D97757'}
+                          onChange={e =>
+                            handleUpdateVariant(editingVariantIndex, { backgroundColor: e.target.value })
+                          }
+                          className="w-full px-2 py-1.5 text-xs bg-white border border-[#EAE6E1] rounded-lg font-mono text-[#1F1E1D]"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium text-[#6B6661] mb-1">
+                        Trigger Condition (Documentation tag)
+                      </label>
+                      <input
+                        type="text"
+                        value={activeEditingVariant.triggerCondition || ''}
+                        onChange={e =>
+                          handleUpdateVariant(editingVariantIndex, { triggerCondition: e.target.value })
+                        }
+                        className="w-full px-2.5 py-1.5 text-xs bg-white border border-[#EAE6E1] rounded-lg font-mono text-[#1F1E1D]"
+                        placeholder="e.g. streak >= 7, theme == dark"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Live Thumbnail Preview */}
+                  <div className="flex items-center gap-3 pt-2 border-t border-[#EAE6E1]">
+                    <div
+                      className="w-12 h-12 rounded-xl flex items-center justify-center text-xl shadow-xs border border-black/10 overflow-hidden shrink-0"
+                      style={{ backgroundColor: activeEditingVariant.backgroundColor }}
+                    >
+                      {activeEditingVariant.imageUrl || activeEditingVariant.imageBase64 ? (
+                        <img
+                          src={activeEditingVariant.imageUrl || activeEditingVariant.imageBase64}
+                          alt="Icon Preview"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span>{activeEditingVariant.glyph || '★'}</span>
+                      )}
+                    </div>
+                    <div className="text-xs">
+                      <div className="font-semibold text-[#1F1E1D]">
+                        Launcher Preview: {activeEditingVariant.name}
+                      </div>
+                      <div className="text-[11px] text-[#6B6661]">
+                        Android Manifest Activity Alias:{' '}
+                        <code className="text-[#D97757] font-mono">
+                          {appId}.MainActivity_{activeEditingVariant.id}
+                        </code>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 3. Splash Screen Configurator (Nuanced with Custom Image & Color) */}
+            <div className="p-6 bg-white border border-[#EAE6E1] rounded-2xl space-y-4 shadow-xs">
+              <h3 className="font-bold text-sm text-[#1F1E1D] flex items-center gap-2">
+                <Palette className="w-4 h-4 text-[#D97757]" />
+                <span>Splash Screen & Launch Experience</span>
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSplashType('custom_icon')}
+                  className={`p-3 rounded-xl border text-left transition-colors cursor-pointer ${
+                    splashType === 'custom_icon'
+                      ? 'border-[#D97757] bg-[#D97757]/5'
+                      : 'border-[#EAE6E1] bg-[#FAF8F5]'
+                  }`}
+                >
+                  <div className="font-semibold text-xs text-[#1F1E1D]">Branded Logo</div>
+                  <div className="text-[11px] text-[#6B6661] mt-0.5">Centered custom icon</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSplashType('flat_color')}
+                  className={`p-3 rounded-xl border text-left transition-colors cursor-pointer ${
+                    splashType === 'flat_color'
+                      ? 'border-[#D97757] bg-[#D97757]/5'
+                      : 'border-[#EAE6E1] bg-[#FAF8F5]'
+                  }`}
+                >
+                  <div className="font-semibold text-xs text-[#1F1E1D]">Flat Solid Color</div>
+                  <div className="text-[11px] text-[#6B6661] mt-0.5">Seamless canvas</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSplashType('full_image')}
+                  className={`p-3 rounded-xl border text-left transition-colors cursor-pointer ${
+                    splashType === 'full_image'
+                      ? 'border-[#D97757] bg-[#D97757]/5'
+                      : 'border-[#EAE6E1] bg-[#FAF8F5]'
+                  }`}
+                >
+                  <div className="font-semibold text-xs text-[#1F1E1D]">Full Image Poster</div>
+                  <div className="text-[11px] text-[#6B6661] mt-0.5">Edge-to-edge art</div>
+                </button>
+              </div>
+
+              {/* Splash Custom Image URL or Upload */}
+              {splashType !== 'flat_color' && (
+                <div>
+                  <label className="block text-[11px] font-medium text-[#6B6661] mb-1">
+                    Splash Screen Image / Logo URL (HTTPS)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="url"
+                      value={splashImageUrl}
+                      onChange={e => {
+                        setSplashImageUrl(e.target.value);
+                        setSplashImageBase64('');
+                      }}
+                      className="w-full px-2.5 py-1.5 text-xs bg-[#FAF8F5] border border-[#EAE6E1] rounded-lg text-[#1F1E1D] font-mono"
+                      placeholder="https://example.com/splash_logo.png"
+                    />
+                    <label className="cursor-pointer px-2.5 py-1.5 text-xs font-semibold text-[#D97757] bg-[#D97757]/10 hover:bg-[#D97757]/15 rounded-lg flex items-center gap-1.5 shrink-0 transition-colors">
+                      <Upload className="w-3 h-3" />
+                      <span>Upload</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleSplashImageUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-medium text-[#6B6661] mb-1">
+                    Splash Background Color
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={splashBgColor}
+                      onChange={e => setSplashBgColor(e.target.value)}
+                      className="w-8 h-8 rounded-lg border border-[#EAE6E1] cursor-pointer p-0.5 bg-white shrink-0"
+                    />
+                    <input
+                      type="text"
+                      value={splashBgColor}
+                      onChange={e => setSplashBgColor(e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs bg-[#FAF8F5] border border-[#EAE6E1] rounded-lg font-mono text-[#1F1E1D]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-[#6B6661] mb-1">
+                    Splash Duration: {splashDuration}ms
+                  </label>
+                  <input
+                    type="range"
+                    min="400"
+                    max="4000"
+                    step="100"
+                    value={splashDuration}
+                    onChange={e => setSplashDuration(Number(e.target.value))}
+                    className="w-full accent-[#D97757] cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-xs pt-1 border-t border-[#EAE6E1]">
+                <span className="text-[#6B6661]">Lifecycle: Seamless fade-in to web DOM</span>
+                <label className="flex items-center gap-2 text-[#1F1E1D] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={splashAutoHide}
+                    onChange={e => setSplashAutoHide(e.target.checked)}
+                    className="rounded border-[#EAE6E1] text-[#D97757] focus:ring-0"
+                  />
+                  <span>Auto-hide when DOM is ready</span>
+                </label>
+              </div>
+            </div>
+
+            {/* 4. Fullscreen, Theme & Stay Awake */}
             <div className="p-6 bg-white border border-[#EAE6E1] rounded-2xl space-y-4 shadow-xs">
               <h3 className="font-bold text-sm text-[#1F1E1D] flex items-center gap-2">
                 <Maximize2 className="w-4 h-4 text-[#D97757]" />
-                <span>Viewport, Fullscreen & Theme Control</span>
+                <span>Viewport, Status Bar & Stay Awake</span>
               </h3>
+
+              {/* Stay Awake Toggle */}
+              <div className="p-4 bg-[#FAF8F5] rounded-xl border border-[#EAE6E1] flex items-start justify-between gap-4">
+                <div>
+                  <div className="font-semibold text-xs text-[#1F1E1D] flex items-center gap-2">
+                    <span>Keep Screen Awake (Stay Awake)</span>
+                    <span className="text-[10px] bg-[#D97757]/10 text-[#D97757] px-1.5 py-0.2 rounded font-mono font-medium">
+                      FLAG_KEEP_SCREEN_ON
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#6B6661] mt-1 leading-relaxed">
+                    Prevents the device display from dimming or turning off during use. Essential for fitness workouts, timers, audio/video playback, and presentation dashboards.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setKeepAwake(!keepAwake)}
+                  className={`w-12 h-6 rounded-full transition-colors relative shrink-0 cursor-pointer ${
+                    keepAwake ? 'bg-[#D97757]' : 'bg-[#D8D2C9]'
+                  }`}
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${
+                      keepAwake ? 'left-7' : 'left-1'
+                    }`}
+                  />
+                </button>
+              </div>
 
               {/* Fullscreen Toggle */}
               <div className="p-4 bg-[#FAF8F5] rounded-xl border border-[#EAE6E1] flex items-start justify-between gap-4">
                 <div>
                   <div className="font-semibold text-xs text-[#1F1E1D] flex items-center gap-2">
-                    <span>True Immersive Fullscreen Mode</span>
-                    <span className="text-[10px] bg-[#2E7D32]/10 text-[#2E7D32] px-1.5 py-0.2 rounded font-mono font-medium">100% Working</span>
+                    <span>Immersive Sticky Fullscreen</span>
+                    <span className="text-[10px] bg-[#2E7D32]/10 text-[#2E7D32] px-1.5 py-0.2 rounded font-mono font-medium">
+                      Active
+                    </span>
                   </div>
                   <p className="text-[11px] text-[#6B6661] mt-1 leading-relaxed">
-                    Hides status bar and navigation bar via `WindowInsetsControllerCompat`, sets `shortEdges` cutout mode for camera notches, and applies `viewport-fit=cover`.
+                    Hides system navigation bar and status bar, utilizing notch cutout space via <code className="text-[#D97757] font-mono">viewport-fit=cover</code>.
                   </p>
                 </div>
                 <button
@@ -459,52 +1197,11 @@ if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
                 </button>
               </div>
 
-              {/* Stay Awake Toggle */}
-              <div className="p-4 bg-[#FAF8F5] rounded-xl border border-[#EAE6E1] flex items-start justify-between gap-4">
-                <div>
-                  <div className="font-semibold text-xs text-[#1F1E1D] flex items-center gap-2">
-                    <span>Keep Screen Awake (Stay Awake)</span>
-                    <span className="text-[10px] bg-[#D97757]/10 text-[#D97757] px-1.5 py-0.2 rounded font-mono font-medium">FLAG_KEEP_SCREEN_ON</span>
-                  </div>
-                  <p className="text-[11px] text-[#6B6661] mt-1 leading-relaxed">
-                    Prevents the device display from dimming or locking while the app is active (ideal for workouts, dashboards, video, and presentations).
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setKeepAwake(!keepAwake)}
-                  className={`w-12 h-6 rounded-full transition-colors relative shrink-0 cursor-pointer ${
-                    keepAwake ? 'bg-[#D97757]' : 'bg-[#D8D2C9]'
-                  }`}
-                >
-                  <div
-                    className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${
-                      keepAwake ? 'left-7' : 'left-1'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Default App Icon */}
-              <div className="p-4 rounded-xl border border-[#EAE6E1] bg-white">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <label htmlFor="default-app-icon" className="block text-xs font-semibold text-[#1F1E1D]">Default app icon</label>
-                    <p className="mt-1 text-[11px] leading-relaxed text-[#6B6661]">Upload a square PNG, JPEG, or WebP. It is sent as <code>iconVariants[0].imageData</code> in the API payload and becomes the launcher icon.</p>
-                  </div>
-                  <label htmlFor="default-app-icon" className="shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#1F1E1D] text-white text-xs font-semibold cursor-pointer hover:bg-[#373330]">
-                    <Upload className="w-3.5 h-3.5" /> {defaultIconName ? 'Replace' : 'Choose image'}
-                  </label>
-                  <input id="default-app-icon" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleDefaultIconUpload} className="sr-only" />
-                </div>
-                {defaultIconName && <p className="mt-2 text-[11px] text-[#2E7D32]">Selected: {defaultIconName}</p>}
-              </div>
-
-              {/* Theme Color Picker */}
+              {/* Theme Colors */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-[#6B6661] mb-1">
-                    Default Theme / Status Bar Color
+                    Theme &amp; Status Bar Color
                   </label>
                   <div className="flex items-center gap-2">
                     <input
@@ -514,7 +1211,7 @@ if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
                         setThemeColor(e.target.value);
                         syncPreview({ themeColor: e.target.value });
                       }}
-                      className="w-9 h-9 rounded-lg border border-[#EAE6E1] cursor-pointer p-0.5 bg-white"
+                      className="w-9 h-9 rounded-lg border border-[#EAE6E1] cursor-pointer p-0.5 bg-white shrink-0"
                     />
                     <input
                       type="text"
@@ -523,7 +1220,7 @@ if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
                         setThemeColor(e.target.value);
                         syncPreview({ themeColor: e.target.value });
                       }}
-                      className="w-full px-3 py-2 text-xs bg-[#FAF8F5] border border-[#EAE6E1] rounded-lg text-[#1F1E1D] font-mono focus:outline-none focus:border-[#D97757]"
+                      className="w-full px-3 py-2 text-xs bg-[#FAF8F5] border border-[#EAE6E1] rounded-lg text-[#1F1E1D] font-mono"
                     />
                   </div>
                 </div>
@@ -542,131 +1239,22 @@ if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
                     }`}
                   >
                     <span>Observe &lt;meta name=&quot;theme-color&quot;&gt;</span>
-                    {watchThemeColor ? <Check className="w-3.5 h-3.5 text-[#D97757]" /> : <span className="text-[10px]">Off</span>}
+                    {watchThemeColor ? (
+                      <Check className="w-3.5 h-3.5 text-[#D97757]" />
+                    ) : (
+                      <span className="text-[10px]">Off</span>
+                    )}
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* 3. Splash Screen Configurator */}
-            <div className="p-6 bg-white border border-[#EAE6E1] rounded-2xl space-y-4 shadow-xs">
-              <h3 className="font-bold text-sm text-[#1F1E1D] flex items-center gap-2">
-                <Palette className="w-4 h-4 text-[#D97757]" />
-                <span>Splash Screen Configurator</span>
-              </h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSplashType('flat_color')}
-                  className={`p-3 rounded-xl border text-left transition-colors cursor-pointer ${
-                    splashType === 'flat_color'
-                      ? 'border-[#D97757] bg-[#D97757]/5'
-                      : 'border-[#EAE6E1] bg-[#FAF8F5]'
-                  }`}
-                >
-                  <div className="font-semibold text-xs text-[#1F1E1D]">Flat Solid Color</div>
-                  <div className="text-[11px] text-[#6B6661] mt-0.5">Seamless zero-icon canvas</div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSplashType('custom_icon')}
-                  className={`p-3 rounded-xl border text-left transition-colors cursor-pointer ${
-                    splashType === 'custom_icon'
-                      ? 'border-[#D97757] bg-[#D97757]/5'
-                      : 'border-[#EAE6E1] bg-[#FAF8F5]'
-                  }`}
-                >
-                  <div className="font-semibold text-xs text-[#1F1E1D]">Branded App Icon</div>
-                  <div className="text-[11px] text-[#6B6661] mt-0.5">Centered adaptive logo</div>
-                </button>
-
-                <div>
-                  <label className="block text-[11px] font-medium text-[#6B6661] mb-1">Splash Background</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={splashBgColor}
-                      onChange={e => setSplashBgColor(e.target.value)}
-                      className="w-8 h-8 rounded-lg border border-[#EAE6E1] cursor-pointer p-0.5 bg-white"
-                    />
-                    <input
-                      type="text"
-                      value={splashBgColor}
-                      onChange={e => setSplashBgColor(e.target.value)}
-                      className="w-full px-2 py-1.5 text-xs bg-[#FAF8F5] border border-[#EAE6E1] rounded-lg text-[#1F1E1D] font-mono"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between text-xs pt-1">
-                <span className="text-[#6B6661]">Launch Duration: {splashDuration}ms</span>
-                <label className="flex items-center gap-2 text-[#1F1E1D] cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={splashAutoHide}
-                    onChange={e => setSplashAutoHide(e.target.checked)}
-                    className="rounded border-[#EAE6E1] text-[#D97757] focus:ring-0"
-                  />
-                  <span>Auto-hide when DOM is ready</span>
-                </label>
-              </div>
-            </div>
-
-            {/* 4. Duolingo Dynamic App Icon Studio */}
-            <div className="p-6 bg-white border border-[#EAE6E1] rounded-2xl space-y-4 shadow-xs">
-              <div className="flex items-center justify-between">
-                <h3 className="font-bold text-sm text-[#1F1E1D] flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-[#D97757]" />
-                  <span>Dynamic App Icon Variants (Duolingo Style)</span>
-                </h3>
-                <span className="text-xs text-[#8C867D] font-mono tabular-nums">
-                  {iconVariants.length} Active Aliases
-                </span>
-              </div>
-
-              <p className="text-xs text-[#6B6661] leading-relaxed">
-                Configure launcher icons that can be switched dynamically from JavaScript inside the static app using `LarpBridge.setIcon(...)`.
-              </p>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {iconVariants.map(variant => (
-                  <div
-                    key={variant.id}
-                    className="p-3 bg-[#FAF8F5] border border-[#EAE6E1] rounded-xl flex flex-col items-center text-center relative group"
-                  >
-<div
-  className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center text-2xl shadow-xs mb-2 border border-black/5"
-  style={{ backgroundColor: variant.backgroundColor, color: variant.foregroundColor }}
-  >
-  {variant.imageData ? (
-    <img src={variant.imageData} alt={`${variant.name} preview`} className="w-full h-full object-cover" />
-  ) : variant.glyph}
-  </div>
-                    <span className="font-semibold text-xs text-[#1F1E1D] truncate max-w-full">
-                      {variant.name}
-                    </span>
-                    <span className="text-[10px] text-[#8C867D] font-mono truncate max-w-full">
-                      ID: {variant.id}
-                    </span>
-                    {variant.triggerCondition && (
-                      <span className="text-[9px] text-[#D97757] font-mono mt-1 px-1 bg-[#D97757]/10 rounded">
-                        {variant.triggerCondition}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* 5. Native Permissions */}
+            {/* 5. Device Permissions */}
             <div className="p-6 bg-white border border-[#EAE6E1] rounded-2xl space-y-4 shadow-xs">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-sm text-[#1F1E1D] flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-[#D97757]" />
-                  <span>Native Device Permissions</span>
+                  <span>Native Permissions &amp; Hardware</span>
                 </h3>
 
                 <button
@@ -717,24 +1305,25 @@ if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
             </div>
           </div>
 
-          {/* Right Column: Code Editor & Build Action (5 cols) */}
+          {/* Right Column: Code Editor, GitHub Bridge, and Build Button (5 cols) */}
           <div className="lg:col-span-5 space-y-6">
-            {/* Code Editor */}
+            {/* Web App Bundle (Single file or Multi-file ZIP) */}
             <div className="p-6 bg-white border border-[#EAE6E1] rounded-2xl space-y-4 shadow-xs">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-sm text-[#1F1E1D] flex items-center gap-2">
                   <Code className="w-4 h-4 text-[#D97757]" />
-                  <span>Web App Bundle</span>
+                  <span>Web App Bundle &amp; Multi-File ZIP</span>
                 </h3>
-                <div className="flex items-center gap-2">
-                  <label className="cursor-pointer px-2.5 py-1 text-xs font-semibold text-[#D97757] bg-[#D97757]/10 hover:bg-[#D97757]/15 rounded-lg flex items-center gap-1.5 transition-colors">
-                    <Upload className="w-3 h-3" />
-                    <span>{uploadedZipName ? `ZIP: ${uploadedZipName}` : 'Upload .ZIP Bundle'}</span>
-                    <input type="file" accept=".zip" onChange={handleZipUpload} className="hidden" />
-                  </label>
-                  <span className="text-xs font-mono text-[#8C867D]">index.html</span>
-                </div>
+                <label className="cursor-pointer px-2.5 py-1 text-xs font-semibold text-[#D97757] bg-[#D97757]/10 hover:bg-[#D97757]/15 rounded-lg flex items-center gap-1.5 transition-colors">
+                  <Upload className="w-3 h-3" />
+                  <span>{uploadedZipName ? `ZIP: ${uploadedZipName}` : 'Upload .ZIP Bundle'}</span>
+                  <input type="file" accept=".zip" onChange={handleZipUpload} className="hidden" />
+                </label>
               </div>
+
+              <p className="text-xs text-[#6B6661]">
+                Upload a full web project archive (.zip) or customize the entry point HTML directly below. Hardware back-button automatically navigates across pages via <code className="text-[#D97757] font-mono">history.back()</code>.
+              </p>
 
               <div className="relative">
                 <textarea
@@ -743,7 +1332,7 @@ if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
                     setCodeContent(e.target.value);
                     syncPreview({ html: e.target.value });
                   }}
-                  rows={14}
+                  rows={12}
                   className="w-full p-3 font-mono text-[11px] leading-relaxed bg-[#FAF8F5] border border-[#EAE6E1] rounded-xl text-[#1F1E1D] focus:outline-none focus:border-[#D97757] resize-none"
                   spellCheck={false}
                 />
@@ -755,19 +1344,25 @@ if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
               </div>
             </div>
 
-
-            {/* GitHub Actions Bridge Credentials */}
+            {/* GitHub Actions CI/CD Bridge Credentials */}
             <div className="p-6 bg-white border border-[#EAE6E1] rounded-2xl space-y-4 shadow-xs">
-              <h3 className="font-bold text-sm text-[#1F1E1D] flex items-center gap-2">
-                <GitBranch className="w-4 h-4 text-[#D97757]" />
-                <span>GitHub Actions CI/CD Bridge (API Middleman)</span>
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-sm text-[#1F1E1D] flex items-center gap-2">
+                  <GitBranch className="w-4 h-4 text-[#D97757]" />
+                  <span>GitHub Actions CI/CD Bridge</span>
+                </h3>
+                <span className="text-[10px] bg-emerald-500/10 text-emerald-700 px-2 py-0.5 rounded font-mono font-medium">
+                  Direct API Middleman
+                </span>
+              </div>
               <p className="text-xs text-[#6B6661] leading-relaxed">
-                Connect your GitHub repository. The LARP API acts as the middleman: commits app assets, triggers GitHub Actions runner, compiles native release packages, and serves a direct download URL.
+                Provide your GitHub credentials. The LARP API automatically syncs assets to your designated repository, triggers GitHub Actions runners, downloads the release package, and provides a direct download link.
               </p>
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-[#6B6661] mb-1">GitHub Username</label>
+                  <label className="block text-xs font-medium text-[#6B6661] mb-1">
+                    GitHub Username
+                  </label>
                   <input
                     type="text"
                     value={githubUsername}
@@ -777,7 +1372,9 @@ if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[#6B6661] mb-1">GitHub Personal Access Token (PAT)</label>
+                  <label className="block text-xs font-medium text-[#6B6661] mb-1">
+                    GitHub Personal Access Token (PAT)
+                  </label>
                   <input
                     type="password"
                     value={githubToken}
@@ -787,7 +1384,9 @@ if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-[#6B6661] mb-1">Target Repository Name</label>
+                  <label className="block text-xs font-medium text-[#6B6661] mb-1">
+                    Target Repository Name (Repo ID)
+                  </label>
                   <input
                     type="text"
                     value={githubRepo}
@@ -796,29 +1395,29 @@ if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
                     placeholder="larp-android-app-v6"
                   />
                   <p className="text-[10px] text-[#8C867D] mt-1">
-                    Choose which repository under your account will execute the build runner.
+                    Select any repository under your account to run the build actions.
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Build Action Button */}
+            {/* Build Action Button & Log Stream */}
             <div className="p-6 bg-white border border-[#EAE6E1] rounded-2xl space-y-4 shadow-xs">
               <button
                 type="button"
                 onClick={handleRunBuild}
                 disabled={isBuilding}
-                className="w-full py-3.5 px-4 bg-[#D97757] hover:bg-[#C86646] active:scale-[0.99] text-white font-semibold text-sm rounded-xl shadow-sm flex items-center justify-center gap-2 transition-all disabled:opacity-60 cursor-pointer"
+                className="w-full py-4 px-4 bg-[#D97757] hover:bg-[#C86646] active:scale-[0.99] text-white font-semibold text-sm rounded-xl shadow-sm flex items-center justify-center gap-2 transition-all disabled:opacity-60 cursor-pointer"
               >
                 {isBuilding ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>Compiling Signed APK & Play Store AAB...</span>
+                    <span>Compiling APK via Official Android Toolchain &amp; GitHub Actions...</span>
                   </>
                 ) : (
                   <>
                     <Package className="w-4 h-4" />
-                    <span>Compile Signed Native App</span>
+                    <span>Compile Signed Native APK (Direct Build)</span>
                   </>
                 )}
               </button>
@@ -826,16 +1425,284 @@ if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
               {/* Build Output Logs */}
               {buildLogs.length > 0 && (
                 <div className="mt-4">
-                  <div className="text-[11px] font-semibold text-[#1F1E1D] uppercase tracking-wider mb-2">
-                    Build Output & Artifact Engine
+                  <div className="text-[11px] font-semibold text-[#1F1E1D] uppercase tracking-wider mb-2 flex items-center justify-between">
+                    <span>Build Pipeline Execution Stream</span>
+                    <span className="text-[10px] text-emerald-600 font-mono">Live</span>
                   </div>
                   <div className="p-3 bg-[#1F1E1D] rounded-xl text-emerald-400 font-mono text-[10px] space-y-1 max-h-48 overflow-y-auto">
                     {buildLogs.map((log, i) => (
-                      <div key={i} className="leading-tight">{log}</div>
+                      <div key={i} className="leading-tight">
+                        {log}
+                      </div>
                     ))}
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* EXACT PAYLOAD SECTION (Right Below Formulation - AI & Developer Ready) */}
+        {/* ========================================================================= */}
+        <div className="mt-12 p-6 md:p-8 bg-white border border-[#EAE6E1] rounded-3xl shadow-sm space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="text-xs font-semibold tracking-wider text-[#D97757] uppercase mb-1 flex items-center gap-2">
+                <Terminal className="w-3.5 h-3.5" />
+                <span>Live Generated API Payload &amp; Executable Code</span>
+              </div>
+              <h3 className="text-xl font-bold tracking-tight text-[#1F1E1D]">
+                Exact Payload for POST /api/larp/build
+              </h3>
+              <p className="text-xs text-[#6B6661] mt-1 max-w-2xl leading-relaxed">
+                This exact JavaScript code and JSON payload reflects your current customized configuration above. You can give this directly to any AI model, CI pipeline, or terminal script to reliably generate this identical Android APK with download URLs.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="bg-[#FAF8F5] p-1 rounded-xl border border-[#EAE6E1] flex items-center">
+                <button
+                  type="button"
+                  onClick={() => setPayloadTab('js')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+                    payloadTab === 'js'
+                      ? 'bg-[#D97757] text-white shadow-xs'
+                      : 'text-[#6B6661] hover:text-[#1F1E1D]'
+                  }`}
+                >
+                  JavaScript (fetch)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPayloadTab('json')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+                    payloadTab === 'json'
+                      ? 'bg-[#D97757] text-white shadow-xs'
+                      : 'text-[#6B6661] hover:text-[#1F1E1D]'
+                  }`}
+                >
+                  Raw JSON
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPayloadTab('curl')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+                    payloadTab === 'curl'
+                      ? 'bg-[#D97757] text-white shadow-xs'
+                      : 'text-[#6B6661] hover:text-[#1F1E1D]'
+                  }`}
+                >
+                  cURL Command
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const textToCopy =
+                    payloadTab === 'js'
+                      ? exactJsCode
+                      : payloadTab === 'json'
+                      ? JSON.stringify(currentBuildPayload, null, 2)
+                      : exactCurlCommand;
+                  copyToClipboard(textToCopy);
+                }}
+                className="px-3.5 py-2 text-xs font-semibold text-[#1F1E1D] bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#EAE6E1] rounded-xl flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+              >
+                {isPayloadCopied ? (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-emerald-700">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5 text-[#6B6661]" />
+                    <span>Copy Code</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Summary Highlights of Customized Aspects */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 pt-2">
+            <div className="p-3 bg-[#FAF8F5] border border-[#EAE6E1] rounded-xl">
+              <span className="text-[10px] text-[#8C867D] uppercase font-mono block">App Name</span>
+              <span className="text-xs font-bold text-[#1F1E1D] truncate block mt-0.5">{appName}</span>
+            </div>
+            <div className="p-3 bg-[#FAF8F5] border border-[#EAE6E1] rounded-xl">
+              <span className="text-[10px] text-[#8C867D] uppercase font-mono block">Package ID</span>
+              <span className="text-xs font-bold text-[#1F1E1D] truncate block mt-0.5">{appId}</span>
+            </div>
+            <div className="p-3 bg-[#FAF8F5] border border-[#EAE6E1] rounded-xl">
+              <span className="text-[10px] text-[#8C867D] uppercase font-mono block">Version</span>
+              <span className="text-xs font-bold text-[#1F1E1D] truncate block mt-0.5">
+                v{version} ({versionCode})
+              </span>
+            </div>
+            <div className="p-3 bg-[#FAF8F5] border border-[#EAE6E1] rounded-xl">
+              <span className="text-[10px] text-[#8C867D] uppercase font-mono block">Theme Color</span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: themeColor }} />
+                <span className="text-xs font-bold text-[#1F1E1D] truncate">{themeColor}</span>
+              </div>
+            </div>
+            <div className="p-3 bg-[#FAF8F5] border border-[#EAE6E1] rounded-xl">
+              <span className="text-[10px] text-[#8C867D] uppercase font-mono block">Splash Screen</span>
+              <span className="text-xs font-bold text-[#1F1E1D] truncate block mt-0.5">
+                {splashType} ({splashDuration}ms)
+              </span>
+            </div>
+            <div className="p-3 bg-[#FAF8F5] border border-[#EAE6E1] rounded-xl">
+              <span className="text-[10px] text-[#8C867D] uppercase font-mono block">Stay Awake</span>
+              <span className="text-xs font-bold text-emerald-600 truncate block mt-0.5">
+                {keepAwake ? 'Enabled' : 'Disabled'}
+              </span>
+            </div>
+            <div className="p-3 bg-[#FAF8F5] border border-[#EAE6E1] rounded-xl">
+              <span className="text-[10px] text-[#8C867D] uppercase font-mono block">Dynamic Icons</span>
+              <span className="text-xs font-bold text-[#D97757] truncate block mt-0.5">
+                {iconVariants.length} Defined
+              </span>
+            </div>
+          </div>
+
+          {/* Active Code Block */}
+          <div className="relative">
+            <pre className="p-4 bg-[#1F1E1D] text-emerald-400 font-mono text-xs rounded-2xl overflow-x-auto max-h-96 leading-relaxed selection:bg-emerald-800">
+              {payloadTab === 'js'
+                ? exactJsCode
+                : payloadTab === 'json'
+                ? JSON.stringify(currentBuildPayload, null, 2)
+                : exactCurlCommand}
+            </pre>
+          </div>
+
+          {/* ========================================================================= */}
+          {/* FRONT-END DOWNLOAD PROCESSING & INTEGRATION SUMMARY (AI & DEVELOPER READY) */}
+          {/* ========================================================================= */}
+          <div className="pt-6 border-t border-[#EAE6E1] space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-semibold tracking-wider text-[#D97757] uppercase flex items-center gap-1.5">
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Front-End Integration &amp; Download Guide</span>
+                </div>
+                <h4 className="text-sm font-bold text-[#1F1E1D] mt-0.5">
+                  How to Process &amp; Download Artifacts in Any External Front-End
+                </h4>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const guideText = `// ============================================================================
+// FRONT-END INTEGRATION GUIDE: BUILD & DOWNLOAD ANDROID ARTIFACTS
+// API Endpoint: ${apiEndpointUrl} (CORS Enabled: *)
+// Download Interceptor: ${downloadApiUrl}
+// ============================================================================
+
+// 1. Build and retrieve all download links:
+async function buildAppAndDownload(payload) {
+  const res = await fetch("${apiEndpointUrl}", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error);
+
+  console.log("APK URL:", data.downloadUrl);
+  console.log("Complete ZIP URL:", data.zipDownloadUrl);
+
+  // 2. Download the all-in-one distribution ZIP bundle (APK + AAB + Keystore + Credentials):
+  const downloadLink = "${effectiveOrigin}" + (data.zipDownloadUrl || "/api/larp/download?file=lionel_complete_release_bundle.zip");
+  
+  const a = document.createElement("a");
+  a.href = downloadLink;
+  a.download = "complete_release_bundle.zip";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  return data;
+}
+
+// 3. Private GitHub Repositories:
+// If your GitHub repository is private, GitHub Actions artifact zip downloads normally require auth.
+// Our Download Interceptor handles this automatically with your access token:
+// GET ${downloadApiUrl}?owner=${githubUsername}&repo=${githubRepo}&artifact_id=ARTIFACT_ID&token=${githubToken}`;
+                  copyToClipboard(guideText);
+                  setIsGuideCopied(true);
+                  setTimeout(() => setIsGuideCopied(false), 2000);
+                }}
+                className="px-3 py-1.5 text-xs font-semibold text-[#1F1E1D] bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#EAE6E1] rounded-xl flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer self-start sm:self-auto"
+              >
+                {isGuideCopied ? (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-emerald-700">Guide Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5 text-[#6B6661]" />
+                    <span>Copy Integration Guide</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="p-3.5 bg-[#FAF8F5] border border-[#EAE6E1] rounded-xl">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[#1F1E1D]">
+                  <Box className="w-3.5 h-3.5 text-[#D97757]" />
+                  <span>1. Complete Play Store ZIP</span>
+                </div>
+                <p className="text-[11px] text-[#6B6661] mt-1 leading-relaxed">
+                  Call <code className="text-[#D97757] font-mono">GET {downloadApiUrl}?file=lionel_complete_release_bundle.zip</code> to download the full package containing the Signed APK, Google Play AAB bundle, Release Keystore, and deployment manual.
+                </p>
+              </div>
+
+              <div className="p-3.5 bg-[#FAF8F5] border border-[#EAE6E1] rounded-xl">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[#1F1E1D]">
+                  <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>2. Standalone Signed APK</span>
+                </div>
+                <p className="text-[11px] text-[#6B6661] mt-1 leading-relaxed">
+                  Call <code className="text-[#D97757] font-mono">GET {downloadApiUrl}?file=lionel.apk</code> or directly access <code className="font-mono">/downloads/lionel.apk</code> for instant APK downloads on physical Android devices.
+                </p>
+              </div>
+
+              <div className="p-3.5 bg-[#FAF8F5] border border-[#EAE6E1] rounded-xl">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[#1F1E1D]">
+                  <GitBranch className="w-3.5 h-3.5 text-blue-600" />
+                  <span>3. Private Repo Proxy</span>
+                </div>
+                <p className="text-[11px] text-[#6B6661] mt-1 leading-relaxed">
+                  For private GitHub repositories, our interceptor proxies the artifact using your PAT: <code className="text-[#D97757] font-mono">{downloadApiUrl}?owner={githubUsername}&amp;repo={githubRepo}&amp;artifact_id=ID&amp;token=TOKEN</code>.
+                </p>
+              </div>
+            </div>
+
+            {/* Ready-to-use Frontend Snippet */}
+            <div className="p-3.5 bg-[#FAF8F5] border border-[#EAE6E1] rounded-xl font-mono text-[11px] text-[#1F1E1D] space-y-1">
+              <div className="font-sans font-bold text-xs text-[#1F1E1D] flex items-center justify-between">
+                <span>Front-End Download Helper Snippet (Paste into your React/Vue/Node front-end):</span>
+                <span className="text-[10px] text-emerald-700 font-mono bg-emerald-50 px-2 py-0.5 rounded">CORS Allowed: *</span>
+              </div>
+              <pre className="p-3 bg-[#1F1E1D] text-emerald-400 rounded-lg overflow-x-auto text-[10px] leading-relaxed mt-2">
+{`// Front-end download handler
+function downloadReleaseBundle(zipUrl) {
+  const link = document.createElement('a');
+  link.href = zipUrl.startsWith('http') ? zipUrl : ("${effectiveOrigin}" + zipUrl);
+  link.download = 'playstore_release_package.zip';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}`}
+              </pre>
             </div>
           </div>
         </div>

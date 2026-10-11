@@ -43,14 +43,14 @@ jobs:
         run: |
           echo "=========================================="
           echo "LARP Pure Native Android CI/CD Pipeline"
-          echo "App: MultiFileApp (com.lourdjvke.multifile)"
+          echo "App: Lionel App (com.lourdjvke.lionel)"
           echo "Target SDK: 34 (Android 14+ Ready)"
           echo "=========================================="
 
           WORK_DIR="build_workspace"
           GEN_DIR="$WORK_DIR/gen"
           BIN_DIR="$WORK_DIR/bin"
-          SRC_DIR="$WORK_DIR/src/com/lourdjvke/multifile"
+          SRC_DIR="$WORK_DIR/src/com/lourdjvke/lionel"
           RES_DIR="$WORK_DIR/res"
           DRAWABLE_DIR="$RES_DIR/drawable"
           VALUES_DIR="$RES_DIR/values"
@@ -58,17 +58,30 @@ jobs:
 
           mkdir -p "$GEN_DIR" "$BIN_DIR" "$SRC_DIR" "$DRAWABLE_DIR" "$VALUES_DIR" "$ASSETS_DIR/public"
 
-          # 1. Copy web static files to assets/public
+          # 1. Copy web static files to assets/public and resources
           if [ -d "public" ]; then
             cp -r public/* "$ASSETS_DIR/public/" 2>/dev/null || true
           fi
+          if [ -d "res" ]; then
+            cp -r res/* "$RES_DIR/" 2>/dev/null || true
+          fi
+          # Ensure fallback icon exists in mipmap and drawable if not present
+          mkdir -p "$RES_DIR/mipmap-mdpi" "$RES_DIR/mipmap-hdpi" "$RES_DIR/mipmap-xhdpi" "$RES_DIR/mipmap-xxhdpi" "$RES_DIR/mipmap-xxxhdpi" "$RES_DIR/mipmap"
+          if [ ! -f "$RES_DIR/mipmap-xxxhdpi/ic_launcher.png" ] && [ -f "$RES_DIR/drawable/ic_launcher.png" ]; then
+            cp "$RES_DIR/drawable/ic_launcher.png" "$RES_DIR/mipmap-xxxhdpi/ic_launcher.png"
+            cp "$RES_DIR/drawable/ic_launcher.png" "$RES_DIR/mipmap-xxhdpi/ic_launcher.png"
+            cp "$RES_DIR/drawable/ic_launcher.png" "$RES_DIR/mipmap-xhdpi/ic_launcher.png"
+            cp "$RES_DIR/drawable/ic_launcher.png" "$RES_DIR/mipmap-hdpi/ic_launcher.png"
+            cp "$RES_DIR/drawable/ic_launcher.png" "$RES_DIR/mipmap-mdpi/ic_launcher.png"
+            cp "$RES_DIR/drawable/ic_launcher.png" "$RES_DIR/mipmap/ic_launcher.png"
+          fi
           if [ ! -f "$ASSETS_DIR/public/index.html" ]; then
-            echo "<!DOCTYPE html><html><body><h1>StreakHero</h1></body></html>" > "$ASSETS_DIR/public/index.html"
+            echo "<!DOCTYPE html><html><body><h1>Lionel App</h1></body></html>" > "$ASSETS_DIR/public/index.html"
           fi
 
           # 2. Write Android resources (strings.xml, colors.xml, styles.xml)
           cat << 'EOF' > "$VALUES_DIR/strings.xml"
-          <resources><string name="app_name">MultiFileApp</string></resources>
+          <resources><string name="app_name">Lionel App</string></resources>
           EOF
 
           cat << 'EOF' > "$VALUES_DIR/colors.xml"
@@ -89,8 +102,8 @@ jobs:
           cat << 'EOF' > "$WORK_DIR/AndroidManifest.xml"
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-              package="com.lourdjvke.multifile"
-              android:versionCode="102"
+              package="com.lourdjvke.lionel"
+              android:versionCode="101"
               android:versionName="1.0.0">
 
               <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="34" />
@@ -110,29 +123,34 @@ jobs:
               <uses-permission android:name="android.permission.VIBRATE" />
               <uses-permission android:name="android.permission.CAMERA" />
               <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+              <uses-permission android:name="android.permission.WAKE_LOCK" />
 
               <application
-                  android:label="MultiFileApp"
+                  android:label="Lionel App"
+                  android:icon="@mipmap/ic_launcher"
                   android:theme="@style/AppTheme"
                   android:hardwareAccelerated="true"
                   android:allowBackup="true">
 
                   <activity
-                      android:name="com.lourdjvke.multifile.MainActivity"
-                      android:label="MultiFileApp"
+                      android:name="com.lourdjvke.lionel.MainActivity"
+                      android:label="Lionel App"
+                      android:icon="@mipmap/ic_launcher"
                       android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale"
                       android:exported="true"
                       android:launchMode="singleTask">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
                       </intent-filter>
                   </activity>
 
                   <activity-alias
-                      android:name="com.lourdjvke.multifile.MainActivity_default"
-                      android:targetActivity="com.lourdjvke.multifile.MainActivity"
-                      android:label="MultiFileApp"
-                      android:enabled="true"
+                      android:name="com.lourdjvke.lionel.MainActivity_streak_fire"
+                      android:targetActivity="com.lourdjvke.lionel.MainActivity"
+                      android:icon="@mipmap/ic_launcher_streak_fire"
+                      android:label="Lionel App"
+                      android:enabled="false"
                       android:exported="true">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
@@ -146,7 +164,7 @@ jobs:
 
           # 4. Write MainActivity.java
           cat << 'EOF' > "$SRC_DIR/MainActivity.java"
-          package com.lourdjvke.multifile;
+          package com.lourdjvke.lionel;
           import android.app.Activity;
           import android.os.Build;
           import android.os.Bundle;
@@ -178,6 +196,8 @@ jobs:
                   super.onCreate(savedInstanceState);
                   mainHandler = new Handler(Looper.getMainLooper());
                   applyThemeColor(DEFAULT_THEME_COLOR);
+
+                  try { getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); } catch (Exception ignored) {}
 
                   FrameLayout rootLayout = new FrameLayout(this);
                   rootLayout.setLayoutParams(new FrameLayout.LayoutParams(
@@ -264,6 +284,18 @@ jobs:
                   @JavascriptInterface
                   public void setThemeColor(String c) { applyThemeColor(c); }
                   @JavascriptInterface
+                  public void setKeepAwake(final boolean e) {
+                      mainHandler.post(new Runnable() {
+                          @Override
+                          public void run() {
+                              try {
+                                  if (e) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                                  else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                              } catch (Exception ignored) {}
+                          }
+                      });
+                  }
+                  @JavascriptInterface
                   public void hideSplashScreen() {}
                   @JavascriptInterface
                   public void setIcon(String i) {}
@@ -287,7 +319,7 @@ jobs:
           echo "Using android.jar: $ANDROID_JAR"
 
           aapt package -m -J "$GEN_DIR" -M "$WORK_DIR/AndroidManifest.xml" -S "$RES_DIR" -I "$ANDROID_JAR" --min-sdk-version 21 --target-sdk-version 34
-          javac -cp "$ANDROID_JAR" -d "$BIN_DIR" -source 8 -target 8 "$GEN_DIR/com/lourdjvke/multifile/R.java" "$SRC_DIR/MainActivity.java"
+          javac -cp "$ANDROID_JAR" -d "$BIN_DIR" -source 8 -target 8 "$GEN_DIR/com/lourdjvke/lionel/R.java" "$SRC_DIR/MainActivity.java"
           dx --dex --output="$WORK_DIR/classes.dex" "$BIN_DIR"
 
           aapt package -f -M "$WORK_DIR/AndroidManifest.xml" -S "$RES_DIR" -A "$ASSETS_DIR" -I "$ANDROID_JAR" --min-sdk-version 21 --target-sdk-version 34 -F "$WORK_DIR/unsigned.apk"
@@ -295,13 +327,13 @@ jobs:
 
           zipalign -f -p 4 "$WORK_DIR/unsigned.apk" "$WORK_DIR/aligned.apk"
 
-          keytool -genkeypair -v -keystore release.keystore -alias larp_release -keyalg RSA -keysize 2048 -validity 9125 -storepass larp_keystore_password_2026 -keypass larp_keystore_password_2026 -dname "CN=MultiFileApp, OU=LARP, O=LARP Engineering, C=US"
+          keytool -genkeypair -v -keystore release.keystore -alias larp_release -keyalg RSA -keysize 2048 -validity 9125 -storepass larp_keystore_password_2026 -keypass larp_keystore_password_2026 -dname "CN=Lionel App, OU=LARP, O=LARP Engineering, C=US"
 
           apksigner sign --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --ks release.keystore --ks-pass pass:larp_keystore_password_2026 --ks-key-alias larp_release --out signed_release.apk "$WORK_DIR/aligned.apk"
 
           mkdir -p build_output
           cp signed_release.apk build_output/lionel.apk
-          cp signed_release.apk build_output/multifileapp_signed_release.apk
+          cp signed_release.apk build_output/lionel_app_signed_release.apk
           cp release.keystore build_output/larp_release.keystore
 
           echo "Build artifacts generated successfully!"

@@ -74,12 +74,25 @@ jobs:
 
           mkdir -p "$GEN_DIR" "$BIN_DIR" "$SRC_DIR" "$DRAWABLE_DIR" "$VALUES_DIR" "$ASSETS_DIR/public"
 
-          # 1. Copy web static files to assets/public
+          # 1. Copy web static files to assets/public and resources
           if [ -d "public" ]; then
             cp -r public/* "$ASSETS_DIR/public/" 2>/dev/null || true
           fi
+          if [ -d "res" ]; then
+            cp -r res/* "$RES_DIR/" 2>/dev/null || true
+          fi
+          # Ensure fallback icon exists in mipmap and drawable if not present
+          mkdir -p "$RES_DIR/mipmap-mdpi" "$RES_DIR/mipmap-hdpi" "$RES_DIR/mipmap-xhdpi" "$RES_DIR/mipmap-xxhdpi" "$RES_DIR/mipmap-xxxhdpi" "$RES_DIR/mipmap"
+          if [ ! -f "$RES_DIR/mipmap-xxxhdpi/ic_launcher.png" ] && [ -f "$RES_DIR/drawable/ic_launcher.png" ]; then
+            cp "$RES_DIR/drawable/ic_launcher.png" "$RES_DIR/mipmap-xxxhdpi/ic_launcher.png"
+            cp "$RES_DIR/drawable/ic_launcher.png" "$RES_DIR/mipmap-xxhdpi/ic_launcher.png"
+            cp "$RES_DIR/drawable/ic_launcher.png" "$RES_DIR/mipmap-xhdpi/ic_launcher.png"
+            cp "$RES_DIR/drawable/ic_launcher.png" "$RES_DIR/mipmap-hdpi/ic_launcher.png"
+            cp "$RES_DIR/drawable/ic_launcher.png" "$RES_DIR/mipmap-mdpi/ic_launcher.png"
+            cp "$RES_DIR/drawable/ic_launcher.png" "$RES_DIR/mipmap/ic_launcher.png"
+          fi
           if [ ! -f "$ASSETS_DIR/public/index.html" ]; then
-            echo "<!DOCTYPE html><html><body><h1>StreakHero</h1></body></html>" > "$ASSETS_DIR/public/index.html"
+            echo "<!DOCTYPE html><html><body><h1>${appName}</h1></body></html>" > "$ASSETS_DIR/public/index.html"
           fi
 
           # 2. Write Android resources (strings.xml, colors.xml, styles.xml)
@@ -130,6 +143,7 @@ jobs:
 
               <application
                   android:label="${appName}"
+                  android:icon="@mipmap/ic_launcher"
                   android:theme="@style/AppTheme"
                   android:hardwareAccelerated="true"
                   android:allowBackup="true">
@@ -137,25 +151,28 @@ jobs:
                   <activity
                       android:name="${appId}.MainActivity"
                       android:label="${appName}"
+                      android:icon="@mipmap/ic_launcher"
                       android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale"
                       android:exported="true"
                       android:launchMode="singleTask">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
                       </intent-filter>
                   </activity>
 
-                  <activity-alias
-                      android:name="${appId}.MainActivity_default"
+${config.iconVariants.filter(v => v.id !== 'default' && !v.isDefault).map(v => `                  <activity-alias
+                      android:name="${appId}.MainActivity_${v.id}"
                       android:targetActivity="${appId}.MainActivity"
+                      android:icon="@mipmap/ic_launcher_${v.id}"
                       android:label="${appName}"
-                      android:enabled="true"
+                      android:enabled="false"
                       android:exported="true">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
                       </intent-filter>
-                  </activity-alias>
+                  </activity-alias>`).join('\n')}
 
               </application>
           </manifest>

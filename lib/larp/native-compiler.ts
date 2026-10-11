@@ -4,6 +4,7 @@ import { execSync } from 'child_process';
 import zlib from 'zlib';
 import { LarpBuildConfig, GeneratedArtifact, IconVariant } from './types';
 import JSZip from 'jszip';
+import { resolveImageToPngBuffer, resolveMultiDensityIcons, ANDROID_ICON_DENSITIES } from './image-resolver';
 
 /**
  * Creates a valid RGBA PNG buffer without external binary dependencies
@@ -113,14 +114,25 @@ export async function compileGenuineAndroidApk(
   const valuesDir = path.join(resDir, 'values');
   const assetsPublicDir = path.join(workDir, 'assets', 'public');
 
+  // Multi-density mipmap directories for Android OS & launcher compatibility
+  const mipmapDirs: Record<string, string> = {
+    mdpi: path.join(resDir, 'mipmap-mdpi'),
+    hdpi: path.join(resDir, 'mipmap-hdpi'),
+    xhdpi: path.join(resDir, 'mipmap-xhdpi'),
+    xxhdpi: path.join(resDir, 'mipmap-xxhdpi'),
+    xxxhdpi: path.join(resDir, 'mipmap-xxxhdpi'),
+    default: path.join(resDir, 'mipmap'),
+  };
+
   fs.mkdirSync(genDir, { recursive: true });
   fs.mkdirSync(binDir, { recursive: true });
   fs.mkdirSync(srcDir, { recursive: true });
   fs.mkdirSync(drawableDir, { recursive: true });
   fs.mkdirSync(valuesDir, { recursive: true });
   fs.mkdirSync(assetsPublicDir, { recursive: true });
+  Object.values(mipmapDirs).forEach(d => fs.mkdirSync(d, { recursive: true }));
 
-  logs.push(`[Native Compiler] Initialized workspace at ${workDir}`);
+  logs.push(`[Native Compiler] Initialized workspace and multi-density resource directories at ${workDir}`);
 
   // 1. Write static files to assets/public (text and binary assets supported)
   for (const file of processedFiles) {
@@ -133,32 +145,53 @@ export async function compileGenuineAndroidApk(
     }
   }
 
-  // 2. Generate launcher icons. A supplied PNG is used byte-for-byte for the
-  // default launcher icon; variants fall back to generated color swatches.
-  const defaultRgb = hexToRgb(config.themeColor || '#D97757');
+  // 2. Generate multi-density PNG launcher icons (using custom image URLs / Base64 if provided)
   const defaultVariant = config.iconVariants.find(v => v.isDefault) || config.iconVariants[0];
-  const decodeImageData = (imageData?: string): Buffer | null => {
-    if (!imageData) return null;
-    const base64 = imageData.replace(/^data:image\/png;base64,/, '').replace(/^data:[^;]+;base64,/, '');
-    try {
-      const buffer = Buffer.from(base64, 'base64');
-      return buffer.length > 8 && buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) ? buffer : null;
-    } catch {
-      return null;
-    }
-  };
-  const uploadedIcon = decodeImageData(defaultVariant?.imageData);
-  fs.writeFileSync(path.join(drawableDir, 'ic_launcher.png'), uploadedIcon || createPngBuffer(96, 96, defaultRgb.r, defaultRgb.g, defaultRgb.b));
+  const defaultIconSource = defaultVariant?.imageUrl || defaultVariant?.imageBase64 || (config as any).iconUrl || (config as any).iconBase64;
+  logs.push(`[Native Compiler] Resolving master launcher icon from source (${defaultIconSource ? 'custom image' : 'branded procedural'})...`);
 
-  for (const variant of config.iconVariants) {
-    const rgb = hexToRgb(variant.backgroundColor || config.themeColor);
-    const variantIcon = variant.isDefault ? uploadedIcon : decodeImageData(variant.imageData);
-    fs.writeFileSync(
-      path.join(drawableDir, `ic_launcher_${variant.id}.png`),
-      variantIcon || createPngBuffer(96, 96, rgb.r, rgb.g, rgb.b)
-    );
+  const defaultDensityIcons = await resolveMultiDensityIcons(defaultIconSource, {
+    backgroundColor: defaultVariant?.backgroundColor || config.themeColor || '#D97757',
+    label: config.name,
+  });
+
+  // Write default launcher icon across all density mipmaps and drawable
+  for (const [density, buf] of Object.entries(defaultDensityIcons)) {
+    const targetFolder = mipmapDirs[density] || drawableDir;
+    fs.writeFileSync(path.join(targetFolder, 'ic_launcher.png'), buf);
   }
-  if (uploadedIcon) logs.push('[Native Compiler] Applied uploaded PNG as the default launcher icon.');
+  // Also guarantee drawable/ic_launcher.png and mipmap/ic_launcher.png are present
+  fs.writeFileSync(path.join(drawableDir, 'ic_launcher.png'), defaultDensityIcons['xxxhdpi']);
+  fs.writeFileSync(path.join(mipmapDirs.default, 'ic_launcher.png'), defaultDensityIcons['xxxhdpi']);
+
+  // Write each variant across all density mipmaps and drawable
+  for (const variant of config.iconVariants) {
+    const variantSource = variant.imageUrl || variant.imageBase64;
+    const variantDensityIcons = await resolveMultiDensityIcons(variantSource, {
+      backgroundColor: variant.backgroundColor || config.themeColor,
+      label: variant.name || variant.id,
+    });
+    for (const [density, buf] of Object.entries(variantDensityIcons)) {
+      const targetFolder = mipmapDirs[density] || drawableDir;
+      fs.writeFileSync(path.join(targetFolder, `ic_launcher_${variant.id}.png`), buf);
+    }
+    fs.writeFileSync(path.join(drawableDir, `ic_launcher_${variant.id}.png`), variantDensityIcons['xxxhdpi']);
+    fs.writeFileSync(path.join(mipmapDirs.default, `ic_launcher_${variant.id}.png`), variantDensityIcons['xxxhdpi']);
+  }
+
+  // Optional custom splash screen logo
+  if (config.splashScreen?.imageUrl || config.splashScreen?.imageBase64) {
+    const splashPng = await resolveImageToPngBuffer(
+      config.splashScreen.imageUrl || config.splashScreen.imageBase64,
+      {
+        width: 256,
+        height: 256,
+        backgroundColor: config.splashScreen.backgroundColor || '#FAF8F5',
+        label: config.name,
+      }
+    );
+    fs.writeFileSync(path.join(drawableDir, 'splash_logo.png'), splashPng);
+  }
 
   // 3. Write resources: strings.xml, colors.xml, styles.xml
   fs.writeFileSync(
@@ -180,16 +213,16 @@ export async function compileGenuineAndroidApk(
 </resources>`
   );
 
-  // 4. Activity aliases for Duolingo-style dynamic icon swapping
-  // Note: All variants (including default) are activity aliases targeting .MainActivity
-  const activityAliasesXml = config.iconVariants
+  // 4. Activity aliases for dynamic icon variants (non-default variants)
+  const nonDefaultVariants = config.iconVariants.filter(v => v.id !== 'default' && !v.isDefault);
+  const activityAliasesXml = nonDefaultVariants
     .map(v => `
         <activity-alias
             android:name="${config.appId}.MainActivity_${v.id}"
             android:targetActivity="${config.appId}.MainActivity"
-            android:icon="@drawable/ic_launcher_${v.id}"
+            android:icon="@mipmap/ic_launcher_${v.id}"
             android:label="${config.name.replace(/&/g, '&amp;')}"
-            android:enabled="${v.isDefault ? 'true' : 'false'}"
+            android:enabled="false"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -230,21 +263,23 @@ ${config.keepAwake ? '    <uses-permission android:name="android.permission.WAKE
 
     <application
         android:label="${config.name.replace(/&/g, '&amp;')}"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@mipmap/ic_launcher"
         android:theme="@style/AppTheme"
         android:hardwareAccelerated="true"
         android:allowBackup="true">
 
-        <!-- Base engine activity: always enabled, never touched during icon switches -->
+        <!-- Main launcher activity: displays custom @mipmap/ic_launcher across all densities -->
         <activity
             android:name="${config.appId}.MainActivity"
             android:label="${config.name.replace(/&/g, '&amp;')}"
+            android:icon="@mipmap/ic_launcher"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale"
             android:exported="true"
             android:launchMode="singleTask">
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
         </activity>
@@ -527,29 +562,50 @@ public class MainActivity extends Activity {
                         ? "default"
                         : targetVariantId.trim();
                     final String resolvedTarget = target;
-                    String targetAlias = pkg + ".MainActivity_" + resolvedTarget;
-                    ComponentName targetComp = new ComponentName(pkg, targetAlias);
+                    boolean isDefault = ("default".equalsIgnoreCase(resolvedTarget));
+                    ComponentName mainComp = new ComponentName(pkg, pkg + ".MainActivity");
 
-                    // 1. Enable target alias FIRST
-                    pm.setComponentEnabledSetting(
-                        targetComp,
-                        PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                        PackageManager.DONT_KILL_APP
-                    );
-
-                    // 2. Disable all other aliases
                     String[] allVariantIds = new String[] {
                         ${config.iconVariants.map(v => `"${v.id}"`).join(', ')}
                     };
 
-                    for (String variantId : allVariantIds) {
-                        if (!variantId.equalsIgnoreCase(resolvedTarget)) {
-                            ComponentName comp = new ComponentName(pkg, pkg + ".MainActivity_" + variantId);
-                            pm.setComponentEnabledSetting(
-                                comp,
-                                PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                                PackageManager.DONT_KILL_APP
-                            );
+                    if (isDefault) {
+                        pm.setComponentEnabledSetting(
+                            mainComp,
+                            PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                            PackageManager.DONT_KILL_APP
+                        );
+                        for (String variantId : allVariantIds) {
+                            if (!"default".equalsIgnoreCase(variantId)) {
+                                ComponentName comp = new ComponentName(pkg, pkg + ".MainActivity_" + variantId);
+                                pm.setComponentEnabledSetting(
+                                    comp,
+                                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                                    PackageManager.DONT_KILL_APP
+                                );
+                            }
+                        }
+                    } else {
+                        ComponentName targetComp = new ComponentName(pkg, pkg + ".MainActivity_" + resolvedTarget);
+                        pm.setComponentEnabledSetting(
+                            targetComp,
+                            PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                            PackageManager.DONT_KILL_APP
+                        );
+                        pm.setComponentEnabledSetting(
+                            mainComp,
+                            PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                            PackageManager.DONT_KILL_APP
+                        );
+                        for (String variantId : allVariantIds) {
+                            if (!variantId.equalsIgnoreCase(resolvedTarget) && !"default".equalsIgnoreCase(variantId)) {
+                                ComponentName comp = new ComponentName(pkg, pkg + ".MainActivity_" + variantId);
+                                pm.setComponentEnabledSetting(
+                                    comp,
+                                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                                    PackageManager.DONT_KILL_APP
+                                );
+                            }
                         }
                     }
 

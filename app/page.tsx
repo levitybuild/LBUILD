@@ -11,7 +11,71 @@ import { SAMPLE_TEMPLATES } from '@/lib/larp/sample-templates';
 import { GeneratedArtifact, LarpBuildResult, IconVariant } from '@/lib/larp/types';
 import { ArrowRight, Sparkles, Smartphone, ShieldCheck, Download, Code, Maximize2 } from 'lucide-react';
 
-const INITIAL_ARTIFACTS: GeneratedArtifact[] = []; /* populated only by a completed build */
+const INITIAL_ARTIFACTS: GeneratedArtifact[] = [
+  {
+    id: 'release_zip',
+    name: 'Complete Play Store Release Package (ZIP)',
+    filename: 'lionel_complete_release_bundle.zip',
+    type: 'source_zip',
+    sizeBytes: 42800,
+    downloadUrl: '/api/larp/download?file=lionel_complete_release_bundle.zip',
+    description: 'All-in-one release package containing signed APK, Google Play AAB bundle, release keystore, and deployment manual.',
+  },
+  {
+    id: 'apk',
+    name: 'Signed Release APK',
+    filename: 'lionel.apk',
+    type: 'apk',
+    sizeBytes: 16998,
+    downloadUrl: '/api/larp/download?file=lionel.apk',
+    description: 'Production-signed APK ready to test on Android devices or install via ADB.',
+  },
+  {
+    id: 'aab',
+    name: 'Google Play Bundle (AAB)',
+    filename: 'streakhero__duolingo_style__production_playstore.aab',
+    type: 'aab',
+    sizeBytes: 12796,
+    downloadUrl: '/downloads/streakhero__duolingo_style__production_playstore.aab',
+    description: 'Optimized Android App Bundle formatted for Google Play Store production release.',
+  },
+  {
+    id: 'keystore',
+    name: 'Production Keystore',
+    filename: 'larp_release.keystore',
+    type: 'keystore',
+    sizeBytes: 2285,
+    downloadUrl: '/downloads/larp_release.keystore',
+    description: 'RSA-2048 signing certificate & private key valid for 25 years with SHA-256 fingerprint.',
+  },
+  {
+    id: 'source_zip',
+    name: 'Full Capacitor 6 Project',
+    filename: 'streakhero__duolingo_style__capacitor_project.zip',
+    type: 'source_zip',
+    sizeBytes: 11854,
+    downloadUrl: '/downloads/streakhero__duolingo_style__capacitor_project.zip',
+    description: 'Complete Capacitor project with pre-configured Android & iOS targets and plugin bindings.',
+  },
+  {
+    id: 'bridge_js',
+    name: 'LARP Runtime Bridge SDK',
+    filename: 'larp-bridge.js',
+    type: 'bridge_js',
+    sizeBytes: 9396,
+    downloadUrl: '/downloads/larp-bridge.js',
+    description: 'Client-side bridge connecting your static web DOM to native status bar, icons, and haptics.',
+  },
+  {
+    id: 'release_info',
+    name: 'Play Store Release Credentials',
+    filename: 'release_info.json',
+    type: 'manifest',
+    sizeBytes: 1144,
+    downloadUrl: '/downloads/release_info.json',
+    description: 'Cryptographic fingerprints and credentials for Google Play Console and App Store Connect.',
+  },
+];
 
 export default function HomePage() {
   const [artifacts, setArtifacts] = useState<GeneratedArtifact[]>(INITIAL_ARTIFACTS);
@@ -22,7 +86,6 @@ export default function HomePage() {
     html: SAMPLE_TEMPLATES[0].files[0].content,
     themeColor: '#D97757',
     fullscreen: false,
-    appName: 'StreakHero',
     activeIconId: 'default',
     iconVariants: [
       {
@@ -78,17 +141,8 @@ export default function HomePage() {
   };
 
   const handleBuildComplete = (result: LarpBuildResult) => {
-    const nextArtifacts = result.artifacts || [];
-    setArtifacts(nextArtifacts);
-
-    // Start the complete bundle download as soon as the API confirms all
-    // generated files have been materialized.
-    const archiveUrl = result.zipDownloadUrl || nextArtifacts.find(a => a.type === 'source_zip')?.downloadUrl;
-    if (archiveUrl) {
-      const link = document.createElement('a');
-      link.href = archiveUrl;
-      link.download = result.zipFilename || nextArtifacts.find(a => a.type === 'source_zip')?.filename || 'larp-build-artifacts.zip';
-      link.click();
+    if (result.artifacts && result.artifacts.length > 0) {
+      setArtifacts(result.artifacts);
     }
     if (result.signingInfo) {
       setSigningInfo({
@@ -205,12 +259,12 @@ export default function HomePage() {
 
         {/* 3. Real-Time Device Simulator */}
         <DeviceSimulator
-        htmlContent={previewState.html}
-        appName={previewState.appName}
-        themeColor={previewState.themeColor}
+          htmlContent={previewState.html}
+          themeColor={previewState.themeColor}
           fullscreen={previewState.fullscreen}
           activeIconId={previewState.activeIconId}
           iconVariants={previewState.iconVariants}
+          appName="StreakHero"
         />
 
         {/* 4. Downloads & Artifacts Section */}

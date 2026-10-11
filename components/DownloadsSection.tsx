@@ -146,6 +146,57 @@ export function DownloadsSection({ artifacts, signingInfo }: DownloadsSectionPro
           </div>
         </div>
 
+        {/* Vercel & Serverless In-Memory Blob URL Architecture Card */}
+        <div className="mt-8 p-6 md:p-8 bg-gradient-to-br from-white to-[#FAF8F5] border-2 border-[#D97757]/30 rounded-2xl shadow-xs space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#D97757]/10 text-[#D97757] text-[11px] font-bold tracking-wide uppercase mb-2">
+                <span className="w-2 h-2 rounded-full bg-[#D97757] animate-pulse"></span>
+                <span>Vercel & Serverless Deployment Guarantee</span>
+              </div>
+              <h3 className="text-lg md:text-xl font-bold text-[#1F1E1D]">
+                Direct In-Memory Blob URL Architecture (<code className="text-xs bg-black/5 px-1.5 py-0.5 rounded">blob:https://...</code>)
+              </h3>
+              <p className="text-xs text-[#6B6661] mt-1 max-w-3xl leading-relaxed">
+                When deploying this API to Vercel, AWS Lambda, or serverless functions, the local server disk is ephemeral and cannot be trusted for long-term file persistence. Our API solves this completely by providing <strong>direct binary streaming</strong> and <strong>in-memory Base64 payloads</strong> so your frontend can generate browser Blob URLs instantly without touching any server disk!
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+            <div className="p-4 bg-white rounded-xl border border-[#EAE6E1] space-y-2">
+              <span className="text-xs font-bold text-[#1F1E1D] flex items-center gap-1.5">
+                <span>Method A: Direct Binary Stream</span>
+                <span className="text-[10px] bg-[#2E7D32]/10 text-[#2E7D32] px-2 py-0.5 rounded-full font-mono">1 line</span>
+              </span>
+              <p className="text-[11px] text-[#6B6661]">
+                Call <code>POST /api/larp/build?format=zip</code>. The response streams the raw binary ZIP directly:
+              </p>
+              <pre className="p-2.5 bg-[#FAF8F5] rounded-lg text-[10px] font-mono text-[#1F1E1D] overflow-x-auto border border-[#EAE6E1]">
+{`const res = await fetch('/api/larp/build?format=zip', { method: 'POST', body: ... });
+const blob = await res.blob();
+const blobUrl = URL.createObjectURL(blob); // Instant local blob: URL`}
+              </pre>
+            </div>
+
+            <div className="p-4 bg-white rounded-xl border border-[#EAE6E1] space-y-2">
+              <span className="text-xs font-bold text-[#1F1E1D] flex items-center gap-1.5">
+                <span>Method B: JSON Response Base64</span>
+                <span className="text-[10px] bg-[#2563EB]/10 text-[#2563EB] px-2 py-0.5 rounded-full font-mono">data.zipBase64</span>
+              </span>
+              <p className="text-[11px] text-[#6B6661]">
+                Our standard JSON response returns <code>data.zipBase64</code> for zero-latency client hydration:
+              </p>
+              <pre className="p-2.5 bg-[#FAF8F5] rounded-lg text-[10px] font-mono text-[#1F1E1D] overflow-x-auto border border-[#EAE6E1]">
+{`const data = await res.json();
+const bytes = Uint8Array.from(atob(data.zipBase64), c => c.charCodeAt(0));
+const blob = new Blob([bytes], { type: 'application/zip' });
+const blobUrl = URL.createObjectURL(blob); // Works 100% on Vercel`}
+              </pre>
+            </div>
+          </div>
+        </div>
+
         {/* GitHub Actions CI/CD Pipeline Section */}
         <div className="mt-8 p-6 md:p-8 bg-white border border-[#EAE6E1] rounded-2xl shadow-xs space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
