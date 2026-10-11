@@ -43,13 +43,16 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install Android Build Toolchain
+      - name: Setup Android SDK Build Tools
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK Components
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends aapt apksigner zipalign dalvik-exchange android-framework-res libandroid-23-java default-jdk-headless
-          if ! command -v dx &> /dev/null && [ -f /usr/bin/dalvik-exchange ]; then
-            sudo ln -sf /usr/bin/dalvik-exchange /usr/bin/dx
-          fi
+          sdkmanager --install "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+          echo "$ANDROID_SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+          echo "$ANDROID_SDK_ROOT/build-tools/34.0.0" >> "$GITHUB_PATH"
+          echo "ANDROID_PLATFORM=$ANDROID_SDK_ROOT/platforms/android-34" >> "$GITHUB_ENV"
+          echo "ANDROID_BUILD_TOOLS=$ANDROID_SDK_ROOT/build-tools/34.0.0" >> "$GITHUB_ENV"
 
       - name: Build Genuine Signed APK & AAB
         env:
@@ -326,17 +329,19 @@ ${config.iconVariants.filter(v => v.id !== 'default' && !v.isDefault).map(v => `
           }
           EOF
 
-          # 5. Compile R.java & APK using aapt, javac, dx, zipalign, apksigner
-          ANDROID_JAR="/usr/lib/android-sdk/platforms/android-23/android.jar"
-          if [ ! -f "$ANDROID_JAR" ]; then
-            ANDROID_JAR=$(find /usr -name "android.jar" 2>/dev/null | head -n 1)
-          fi
+# 5. Compile R.java & APK using the installed Android SDK toolchain
+ANDROID_JAR="$ANDROID_PLATFORM/android.jar"
+  if [ ! -f "$ANDROID_JAR" ]; then
+  echo "Missing Android platform jar at $ANDROID_JAR" >&2
+  exit 1
+  fi
 
-          echo "Using android.jar: $ANDROID_JAR"
+  echo "Using android.jar: $ANDROID_JAR"
 
-          aapt package -m -J "$GEN_DIR" -M "$WORK_DIR/AndroidManifest.xml" -S "$RES_DIR" -I "$ANDROID_JAR" --min-sdk-version 21 --target-sdk-version 34
-          javac -cp "$ANDROID_JAR" -d "$BIN_DIR" -source 8 -target 8 "$GEN_DIR/${pkgPath}/R.java" "$SRC_DIR/MainActivity.java"
-          dx --dex --output="$WORK_DIR/classes.dex" "$BIN_DIR"
+  aapt package -m -J "$GEN_DIR" -M "$WORK_DIR/AndroidManifest.xml" -S "$RES_DIR" -I "$ANDROID_JAR" --min-sdk-version 21 --target-sdk-version 34
+  javac -cp "$ANDROID_JAR" -d "$BIN_DIR" -source 8 -target 8 "$GEN_DIR/${pkgPath}/R.java" "$SRC_DIR/MainActivity.java"
+  d8 --min-api 21 --output "$WORK_DIR" "$BIN_DIR"
+
 
           aapt package -f -M "$WORK_DIR/AndroidManifest.xml" -S "$RES_DIR" -A "$ASSETS_DIR" -I "$ANDROID_JAR" --min-sdk-version 21 --target-sdk-version 34 -F "$WORK_DIR/unsigned.apk"
           (cd "$WORK_DIR" && aapt add unsigned.apk classes.dex)
