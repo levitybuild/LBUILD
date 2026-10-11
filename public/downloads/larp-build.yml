@@ -43,14 +43,14 @@ jobs:
         run: |
           echo "=========================================="
           echo "LARP Pure Native Android CI/CD Pipeline"
-          echo "App: Roulette (com.casino.roulette)"
+          echo "App: Lionel App (com.lourdjvke.lionel)"
           echo "Target SDK: 34 (Android 14+ Ready)"
           echo "=========================================="
 
           WORK_DIR="build_workspace"
           GEN_DIR="$WORK_DIR/gen"
           BIN_DIR="$WORK_DIR/bin"
-          SRC_DIR="$WORK_DIR/src/com/casino/roulette"
+          SRC_DIR="$WORK_DIR/src/com/lourdjvke/lionel"
           RES_DIR="$WORK_DIR/res"
           DRAWABLE_DIR="$RES_DIR/drawable"
           VALUES_DIR="$RES_DIR/values"
@@ -76,23 +76,23 @@ jobs:
             cp "$RES_DIR/drawable/ic_launcher.png" "$RES_DIR/mipmap/ic_launcher.png"
           fi
           if [ ! -f "$ASSETS_DIR/public/index.html" ]; then
-            echo "<!DOCTYPE html><html><body><h1>Roulette</h1></body></html>" > "$ASSETS_DIR/public/index.html"
+            echo "<!DOCTYPE html><html><body><h1>Lionel App</h1></body></html>" > "$ASSETS_DIR/public/index.html"
           fi
 
           # 2. Write Android resources (strings.xml, colors.xml, styles.xml)
           cat << 'EOF' > "$VALUES_DIR/strings.xml"
-          <resources><string name="app_name">Roulette</string></resources>
+          <resources><string name="app_name">Lionel App</string></resources>
           EOF
 
           cat << 'EOF' > "$VALUES_DIR/colors.xml"
-          <resources><color name="colorPrimary">#0F172A</color></resources>
+          <resources><color name="colorPrimary">#D97757</color></resources>
           EOF
 
           cat << 'EOF' > "$VALUES_DIR/styles.xml"
           <resources>
               <style name="AppTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
-                  <item name="android:statusBarColor">#0F172A</item>
-                  <item name="android:navigationBarColor">#0F172A</item>
+                  <item name="android:statusBarColor">#D97757</item>
+                  <item name="android:navigationBarColor">#D97757</item>
                   <item name="android:windowDrawsSystemBarBackgrounds">true</item>
               </style>
           </resources>
@@ -102,7 +102,7 @@ jobs:
           cat << 'EOF' > "$WORK_DIR/AndroidManifest.xml"
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-              package="com.casino.roulette"
+              package="com.lourdjvke.lionel"
               android:versionCode="101"
               android:versionName="1.0.0">
 
@@ -126,15 +126,15 @@ jobs:
               <uses-permission android:name="android.permission.WAKE_LOCK" />
 
               <application
-                  android:label="Roulette"
+                  android:label="Lionel App"
                   android:icon="@mipmap/ic_launcher"
                   android:theme="@style/AppTheme"
                   android:hardwareAccelerated="true"
                   android:allowBackup="true">
 
                   <activity
-                      android:name="com.casino.roulette.MainActivity"
-                      android:label="Roulette"
+                      android:name="com.lourdjvke.lionel.MainActivity"
+                      android:label="Lionel App"
                       android:icon="@mipmap/ic_launcher"
                       android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale"
                       android:exported="true"
@@ -146,10 +146,10 @@ jobs:
 
                   <!-- Default launcher alias: enabled by default -->
                   <activity-alias
-                      android:name="com.casino.roulette.MainActivity_default"
-                      android:targetActivity="com.casino.roulette.MainActivity"
+                      android:name="com.lourdjvke.lionel.MainActivity_default"
+                      android:targetActivity="com.lourdjvke.lionel.MainActivity"
                       android:icon="@mipmap/ic_launcher"
-                      android:label="Roulette"
+                      android:label="Lionel App"
                       android:enabled="true"
                       android:exported="true">
                       <intent-filter>
@@ -159,10 +159,22 @@ jobs:
                   </activity-alias>
 
                   <activity-alias
-                      android:name="com.casino.roulette.MainActivity_vip_gold"
-                      android:targetActivity="com.casino.roulette.MainActivity"
-                      android:icon="@mipmap/ic_launcher_vip_gold"
-                      android:label="Roulette"
+                      android:name="com.lourdjvke.lionel.MainActivity_streak_fire"
+                      android:targetActivity="com.lourdjvke.lionel.MainActivity"
+                      android:icon="@mipmap/ic_launcher_streak_fire"
+                      android:label="Lionel App"
+                      android:enabled="false"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity-alias>
+                  <activity-alias
+                      android:name="com.lourdjvke.lionel.MainActivity_stealth_dark"
+                      android:targetActivity="com.lourdjvke.lionel.MainActivity"
+                      android:icon="@mipmap/ic_launcher_stealth_dark"
+                      android:label="Lionel App"
                       android:enabled="false"
                       android:exported="true">
                       <intent-filter>
@@ -177,7 +189,7 @@ jobs:
 
           # 4. Write MainActivity.java
           cat << 'EOF' > "$SRC_DIR/MainActivity.java"
-          package com.casino.roulette;
+          package com.lourdjvke.lionel;
           import android.app.Activity;
           import android.os.Build;
           import android.os.Bundle;
@@ -202,7 +214,7 @@ jobs:
               private WebView webView;
               private View splashView;
               private Handler mainHandler;
-              private static final String DEFAULT_THEME_COLOR = "#0F172A";
+              private static final String DEFAULT_THEME_COLOR = "#D97757";
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
@@ -301,7 +313,7 @@ jobs:
                               PackageManager pm = getPackageManager();
                               String pkg = getPackageName();
                               String target = (targetVariantId == null || targetVariantId.trim().isEmpty()) ? "default" : targetVariantId.trim();
-                              String[] allVariants = new String[] { "default", "vip_gold" };
+                              String[] allVariants = new String[] { "default", "streak_fire", "stealth_dark" };
 
                               ComponentName targetAlias = new ComponentName(pkg, pkg + ".MainActivity_" + target);
                               pm.setComponentEnabledSetting(targetAlias, PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP);
@@ -356,7 +368,7 @@ jobs:
           echo "Using android.jar: $ANDROID_JAR"
 
           aapt package -m -J "$GEN_DIR" -M "$WORK_DIR/AndroidManifest.xml" -S "$RES_DIR" -I "$ANDROID_JAR" --min-sdk-version 21 --target-sdk-version 34
-          javac -cp "$ANDROID_JAR" -d "$BIN_DIR" -source 8 -target 8 "$GEN_DIR/com/casino/roulette/R.java" "$SRC_DIR/MainActivity.java"
+          javac -cp "$ANDROID_JAR" -d "$BIN_DIR" -source 8 -target 8 "$GEN_DIR/com/lourdjvke/lionel/R.java" "$SRC_DIR/MainActivity.java"
           dx --dex --output="$WORK_DIR/classes.dex" "$BIN_DIR"
 
           aapt package -f -M "$WORK_DIR/AndroidManifest.xml" -S "$RES_DIR" -A "$ASSETS_DIR" -I "$ANDROID_JAR" --min-sdk-version 21 --target-sdk-version 34 -F "$WORK_DIR/unsigned.apk"
@@ -364,13 +376,13 @@ jobs:
 
           zipalign -f -p 4 "$WORK_DIR/unsigned.apk" "$WORK_DIR/aligned.apk"
 
-          keytool -genkeypair -v -keystore release.keystore -alias larp_release -keyalg RSA -keysize 2048 -validity 9125 -storepass larp_keystore_password_2026 -keypass larp_keystore_password_2026 -dname "CN=Roulette, OU=LARP, O=LARP Engineering, C=US"
+          keytool -genkeypair -v -keystore release.keystore -alias larp_release -keyalg RSA -keysize 2048 -validity 9125 -storepass larp_keystore_password_2026 -keypass larp_keystore_password_2026 -dname "CN=Lionel App, OU=LARP, O=LARP Engineering, C=US"
 
           apksigner sign --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --ks release.keystore --ks-pass pass:larp_keystore_password_2026 --ks-key-alias larp_release --out signed_release.apk "$WORK_DIR/aligned.apk"
 
           mkdir -p build_output
           cp signed_release.apk build_output/lionel.apk
-          cp signed_release.apk build_output/roulette_signed_release.apk
+          cp signed_release.apk build_output/lionel_app_signed_release.apk
           cp release.keystore build_output/larp_release.keystore
 
           echo "Build artifacts generated successfully!"
