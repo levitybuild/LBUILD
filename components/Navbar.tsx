@@ -60,6 +60,12 @@ export function Navbar({ onScrollTo, onQuickBuild, isBuilding }: NavbarProps) {
           >
             API Reference
           </button>
+          <a
+            href="/documentation"
+            className="text-[#D97757] font-semibold hover:text-[#B85434] transition-colors whitespace-nowrap"
+          >
+            Documentation
+          </a>
         </nav>
 
         {/* Zone 3: Primary Action */}
