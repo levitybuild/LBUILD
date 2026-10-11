@@ -3,7 +3,6 @@ import fs from 'fs';
 import path from 'path';
 import { LarpBuildConfig } from './types';
 import { generateGitHubWorkflowYaml } from './github-actions';
-import { compileGenuineAndroidApk } from './native-compiler';
 import { resolveImageToPngBuffer, resolveMultiDensityIcons } from './image-resolver';
 import { put } from '@vercel/blob';
 
@@ -51,16 +50,10 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
     fs.mkdirSync(publicDownloadsDir, { recursive: true });
   }
 
-  // Pre-compile local signed APK as high-reliability baseline
-  try {
-    const localCompile = await compileGenuineAndroidApk(config, processedFiles, `lionel_${Date.now()}`);
-    fs.writeFileSync(path.join(publicDownloadsDir, apkFilename), localCompile.apkBuffer);
-    fs.writeFileSync(path.join(publicDownloadsDir, localCompile.apkFilename), localCompile.apkBuffer);
-    fs.writeFileSync(path.join(publicDownloadsDir, localCompile.keystoreFilename), localCompile.keystoreBuffer);
-    logs.push(`[Local Engine Baseline] Prepared initial "${apkFilename}" (${localCompile.apkBuffer.length} bytes)`);
-  } catch (err: any) {
-    logs.push(`[Local Engine Notice] ${err.message}`);
-  }
+  // Android compilation runs exclusively in GitHub Actions, where the Android SDK
+  // and build-tools are installed by the generated workflow. Vercel only dispatches
+  // the job and downloads the completed artifact.
+  logs.push('[GitHub Actions Bridge] Skipping local Android compilation; GitHub Actions owns the SDK toolchain.');
 
   const repoUrl = `https://github.com/${username}/${repoName}`;
   let runUrl: string | undefined;
