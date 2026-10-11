@@ -1,6 +1,4 @@
 import JSZip from 'jszip';
-import fs from 'fs';
-import path from 'path';
 import { LarpBuildConfig } from './types';
 import { generateGitHubWorkflowYaml } from './github-actions';
 import { compileGenuineAndroidApk } from './native-compiler';
@@ -42,16 +40,6 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
   };
 
   logs.push(`[GitHub Actions Bridge] Authenticated as GitHub user "${username}"`);
-
-  // Ensure public downloads directory exists if filesystem is writable
-  const publicDownloadsDir = path.join(process.cwd(), 'public', 'downloads');
-  try {
-    if (!fs.existsSync(publicDownloadsDir)) {
-      fs.mkdirSync(publicDownloadsDir, { recursive: true });
-    }
-  } catch (_) {
-    // Read-only filesystem in serverless/Vercel Lambda
-  }
 
   const repoUrl = `https://github.com/${username}/${repoName}`;
   let runUrl: string | undefined;
@@ -237,14 +225,13 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
 
                 if (lionelApkFile) {
                   const apkBytes = await lionelApkFile.async('nodebuffer');
-                  fs.writeFileSync(path.join(publicDownloadsDir, apkFilename), apkBytes);
-                  logs.push(`[GitHub Bridge Success] Extracted genuine GitHub-built "${apkFilename}" (${apkBytes.length} bytes) to downloads directory!`);
+                  logs.push(`[GitHub Bridge Success] Verified genuine GitHub-built "${apkFilename}" (${apkBytes.length} bytes) in memory; no server filesystem write performed.`);
                 }
 
                 const keystoreFile = zip.file('larp_release.keystore');
                 if (keystoreFile) {
                   const keystoreBytes = await keystoreFile.async('nodebuffer');
-                  fs.writeFileSync(path.join(publicDownloadsDir, 'larp_release.keystore'), keystoreBytes);
+                  logs.push(`[GitHub Bridge Success] Verified release keystore (${keystoreBytes.length} bytes) in memory; no server filesystem write performed.`);
                 }
               }
             }

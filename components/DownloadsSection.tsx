@@ -249,14 +249,10 @@ jobs:
                 <span>{copiedId === 'gh_yaml' ? 'Copied YAML!' : 'Copy Workflow'}</span>
               </button>
 
-              <a
-                href="/downloads/larp-build.yml"
-                download="larp-build.yml"
-                className="py-2 px-3.5 bg-[#D97757] hover:bg-[#C86646] text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Download .github/workflows/larp-build.yml</span>
-              </a>
+              <span className="py-2 px-3.5 bg-[#EAE6E1] text-[#6B6661] rounded-xl text-xs font-semibold flex items-center gap-1.5">
+                <GitBranch className="w-3.5 h-3.5" />
+                <span>Workflow is committed to GitHub automatically</span>
+              </span>
             </div>
           </div>
 
