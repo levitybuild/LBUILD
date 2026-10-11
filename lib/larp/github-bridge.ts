@@ -5,6 +5,7 @@ import { LarpBuildConfig } from './types';
 import { generateGitHubWorkflowYaml } from './github-actions';
 import { compileGenuineAndroidApk } from './native-compiler';
 import { resolveImageToPngBuffer, resolveMultiDensityIcons } from './image-resolver';
+import { put } from '@vercel/blob';
 
 export interface GithubBridgeOptions {
   username: string;
@@ -22,6 +23,7 @@ export interface GithubBridgeResult {
   githubRepoUrl?: string;
   githubArtifactId?: number;
   githubArtifactSize?: number;
+  completeArtifactBlobUrl?: string;
   logs: string[];
   runId?: number;
   runConclusion?: string;
@@ -66,6 +68,7 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
   let runConclusion: string | undefined;
   let githubArtifactId: number | undefined;
   let githubArtifactSize: number | undefined;
+  let completeArtifactBlobUrl: string | undefined;
 
   try {
     // 1. Ensure repository exists
@@ -239,6 +242,18 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
                 const zipBuffer = Buffer.from(await downloadRes.arrayBuffer());
                 logs.push(`[GitHub Bridge Middleman] Downloaded ${zipBuffer.length} bytes from GitHub.`);
 
+                const artifactBlob = await put(
+                  `larp-builds/github/${runId}/${repoName}-complete-artifacts.zip`,
+                  zipBuffer,
+                  {
+                    access: 'public',
+                    contentType: 'application/zip',
+                    addRandomSuffix: true,
+                  }
+                );
+                completeArtifactBlobUrl = artifactBlob.url;
+                logs.push(`[GitHub Bridge] Persisted the complete GitHub artifact ZIP to public Blob storage.`);
+
                 const zip = await JSZip.loadAsync(zipBuffer);
                 const lionelApkFile = zip.file('lionel.apk') || zip.file(Object.keys(zip.files).find(k => k.endsWith('.apk')) || '');
 
@@ -278,6 +293,7 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
     githubRepoUrl: repoUrl,
     githubArtifactId,
     githubArtifactSize,
+    completeArtifactBlobUrl,
     runConclusion: runConclusion || 'in_progress',
     logs,
     runId,

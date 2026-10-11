@@ -101,8 +101,9 @@ export function DeviceSimulator({
   }, [currentThemeColor]);
 
   const activeIcon = iconVariants.find(v => v.id === activeIconId) || iconVariants[0];
-  const iconContent = activeIcon?.imageData ? (
-    <img src={activeIcon.imageData} alt={`${activeIcon.name} app icon`} className="w-full h-full rounded-[inherit] object-cover" />
+  const iconImage = activeIcon?.imageUrl || (activeIcon?.imageBase64 ? `data:image/png;base64,${activeIcon.imageBase64}` : undefined);
+  const iconContent = iconImage ? (
+    <img src={iconImage} alt={`${activeIcon.name} app icon`} className="w-full h-full rounded-[inherit] object-cover" />
   ) : (activeIcon?.glyph || 'L');
 
   const triggerReplaySplash = () => {
@@ -324,7 +325,7 @@ export function DeviceSimulator({
                             color: activeIcon.foregroundColor,
                           }}
                         >
-                          {activeIcon.imageData ? <img src={activeIcon.imageData} alt={`${activeIcon.name} app icon`} className="w-full h-full rounded-[inherit] object-cover" /> : activeIcon.glyph}
+                          {iconImage ? <img src={iconImage} alt={`${activeIcon.name} app icon`} className="w-full h-full rounded-[inherit] object-cover" /> : activeIcon.glyph}
                           <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#D97757] rounded-full border-2 border-white" />
                         </div>
                         <span className="text-[10px] font-medium text-center truncate max-w-full text-white/90">

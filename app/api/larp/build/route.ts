@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { LarpBuildConfig, IconVariant, SplashConfig } from '@/lib/larp/types';
 import { buildLarpApp } from '@/lib/larp/generator';
 import { runGithubActionsBuild } from '@/lib/larp/github-bridge';
+import { put } from '@vercel/blob';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -288,6 +289,25 @@ export async function POST(req: NextRequest) {
     // 1. Compile native Android application locally
     const buildResult = await buildLarpApp(config);
 
+    // Persist the complete generated bundle in public Blob storage so downloads
+    // survive serverless instance changes and remain available after the request.
+    const generatedZipBuffer = buildResult.zipBase64
+      ? Buffer.from(buildResult.zipBase64, 'base64')
+      : undefined;
+    let blobDownloadUrl: string | undefined;
+    if (generatedZipBuffer) {
+      const blob = await put(
+        `larp-builds/${buildResult.buildId}/${config.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'app'}-complete-release-bundle.zip`,
+        generatedZipBuffer,
+        {
+          access: 'public',
+          contentType: 'application/zip',
+          addRandomSuffix: true,
+        }
+      );
+      blobDownloadUrl = blob.url;
+    }
+
     // 2. If GitHub credentials provided, execute CI/CD build bridge
     let githubResult: any = null;
     if (username && accessToken) {
@@ -357,8 +377,9 @@ export async function POST(req: NextRequest) {
         themeColor: config.themeColor,
         fullscreen: config.fullscreen,
         keepAwake: config.keepAwake,
-        downloadUrl: downloadZipUrl,
-        zipBundleUrl: directZipUrl,
+        downloadUrl: blobDownloadUrl || downloadZipUrl,
+        blobDownloadUrl,
+        zipBundleUrl: blobDownloadUrl || directZipUrl,
         apkUrl: downloadApkUrl,
         directApkUrl,
         aabUrl: downloadAabUrl,
@@ -391,13 +412,15 @@ export async function POST(req: NextRequest) {
               repoUrl: githubResult.repoUrl,
               runUrl: githubResult.runUrl,
               artifactId: githubResult.githubArtifactId,
+              completeArtifactBlobUrl: githubResult.completeArtifactBlobUrl,
               downloadUrl: githubResult.downloadUrl
                 ? `${baseUrl}${githubResult.downloadUrl}`
                 : undefined,
             }
           : null,
         downloadGuide: {
-          summary: 'Use the refined download link, direct binary stream, or create an instant client-side Blob URL.',
+          summary: 'The complete ZIP is persisted to public Vercel Blob storage and returned as a durable download URL.',
+          blobDownloadUrl,
           zipDownloadEndpoint: downloadZipUrl,
           apkDownloadEndpoint: downloadApkUrl,
           directBinaryEndpoint: `${baseUrl}/api/larp/build?format=zip`,
