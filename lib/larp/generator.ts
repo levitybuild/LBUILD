@@ -1,12 +1,9 @@
-import fs from 'fs';
-import path from 'path';
 import crypto from 'crypto';
 import JSZip from 'jszip';
 import { LarpBuildConfig, LarpBuildResult, GeneratedArtifact, StaticFile } from './types';
 import { getLarpBridgeScript } from './bridge-script';
 import { analyzeStaticBundle } from './auto-detector';
 import { compileGenuineAndroidApk } from './native-compiler';
-import { generateGitHubWorkflowYaml } from './github-actions';
 
 export async function buildLarpApp(config: LarpBuildConfig): Promise<LarpBuildResult> {
   const buildId = `larp_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
@@ -122,12 +119,6 @@ export async function buildLarpApp(config: LarpBuildConfig): Promise<LarpBuildRe
 
   logs.push(`[Bundle] Static assets prepared: ${processedFiles.length} files with runtime bridge.`);
 
-  // Ensure public downloads directory exists
-  const publicDownloadsDir = path.join(process.cwd(), 'public', 'downloads');
-  if (!fs.existsSync(publicDownloadsDir)) {
-    fs.mkdirSync(publicDownloadsDir, { recursive: true });
-  }
-
   // 3. Compile genuine Android APK using official toolchain (aapt, javac, dx, zipalign, apksigner)
   logs.push(`[Compiler] Invoking official Android toolchain (aapt, javac, dx, zipalign, apksigner)...`);
   const compileResult = await compileGenuineAndroidApk(config, processedFiles, buildId);
@@ -182,21 +173,6 @@ Timestamp: ${timestamp}
   const completeZipBuffer = await completeZip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
   const completeZipFilename = 'lionel_complete_release_bundle.zip';
   const bridgeFilename = 'larp-bridge.js';
-
-  // Safely write artifacts to public downloads if writable (bypassed gracefully in Vercel read-only Lambda)
-  try {
-    fs.writeFileSync(path.join(publicDownloadsDir, compileResult.apkFilename), compileResult.apkBuffer);
-    fs.writeFileSync(path.join(publicDownloadsDir, 'lionel.apk'), compileResult.apkBuffer);
-    fs.writeFileSync(path.join(publicDownloadsDir, compileResult.aabFilename), compileResult.aabBuffer);
-    fs.writeFileSync(path.join(publicDownloadsDir, compileResult.keystoreFilename), compileResult.keystoreBuffer);
-    fs.writeFileSync(path.join(publicDownloadsDir, compileResult.projectFilename), compileResult.projectZipBuffer);
-    fs.writeFileSync(path.join(publicDownloadsDir, bridgeFilename), bridgeScriptContent);
-    fs.writeFileSync(path.join(publicDownloadsDir, 'release_info.json'), JSON.stringify(releaseInfo, null, 2));
-    fs.writeFileSync(path.join(publicDownloadsDir, completeZipFilename), completeZipBuffer);
-    fs.writeFileSync(path.join(publicDownloadsDir, 'app_playstore_bundle.zip'), completeZipBuffer);
-  } catch (_) {
-    // Read-only filesystem in Vercel serverless environment; in-memory base64 buffers are preserved
-  }
 
   // Build Artifact List
   const artifacts: GeneratedArtifact[] = [
@@ -272,19 +248,7 @@ Timestamp: ${timestamp}
       downloadUrl: `/downloads/release_info.json`,
       description: 'Cryptographic fingerprints and credentials for Google Play Console and App Store Connect.',
     },
-    {
-      id: 'github_workflow',
-      name: 'GitHub Actions CI/CD Pipeline',
-      filename: 'larp-build.yml',
-      type: 'source_zip',
-      sizeBytes: Buffer.byteLength(generateGitHubWorkflowYaml(config)),
-      downloadUrl: `/downloads/larp-build.yml`,
-      description: 'Automated CI/CD workflow to compile and release your Android APK and AAB on every git push via GitHub Actions.',
-    },
   ];
-
-  const workflowYaml = generateGitHubWorkflowYaml(config);
-  fs.writeFileSync(path.join(publicDownloadsDir, 'larp-build.yml'), workflowYaml);
 
   logs.push(`[Done] Genuine native build completed. Generated ${artifacts.length} downloadable artifacts.`);
 
