@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import JSZip from 'jszip';
 import { put } from '@vercel/blob';
 import { LarpBuildConfig, IconVariant, SplashConfig } from '@/lib/larp/types';
 import { buildLarpApp } from '@/lib/larp/generator';
@@ -251,6 +252,39 @@ export async function POST(req: NextRequest) {
       imageBase64: splashScreen?.imageBase64 || iconBase64 || iconVariants[0]?.imageBase64,
     };
 
+    // Normalize the submitted web bundle once so both local compilation and GitHub CI
+    // receive the same files. In particular, CI must not fall back to a generic page
+    // when the caller submitted the app as a ZIP archive.
+    if (projectZipBuffer) {
+      try {
+        const zip = await JSZip.loadAsync(projectZipBuffer);
+        const extractedFiles: { path: string; content: string; isBinary?: boolean }[] = [];
+        for (const [relPath, fileObj] of Object.entries(zip.files)) {
+          if (fileObj.dir || relPath.includes('__MACOSX') || relPath.endsWith('.DS_Store')) continue;
+          const isText = /\.(html|htm|js|mjs|css|json|svg|txt|xml|md)$/i.test(relPath);
+          const content = isText
+            ? await fileObj.async('string')
+            : (await fileObj.async('nodebuffer') as unknown as Buffer).toString('base64');
+          extractedFiles.push({
+            path: relPath,
+            content,
+            ...(isText ? {} : { isBinary: true }),
+          });
+        }
+        files = [...files, ...extractedFiles];
+        projectZipBuffer = undefined;
+      } catch (zipErr: any) {
+        throw new Error(`Invalid project ZIP: ${zipErr.message}`);
+      }
+    }
+
+    const submittedFiles = files.length > 0 ? files : [
+      {
+        path: 'index.html',
+        content: `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${name}</title></head><body><h1>${name}</h1></body></html>`,
+      },
+    ];
+
     // Build configuration
     const config: LarpBuildConfig = {
       name,
@@ -283,14 +317,9 @@ export async function POST(req: NextRequest) {
       },
       staticBundle: {
         entrypoint: 'index.html',
-        files: files.length > 0 ? files : [
-          {
-            path: 'index.html',
-            content: `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${name}</title><style>body{font-family:sans-serif;background:${themeColor};display:flex;align-items:center;justify-content:center;height:100vh;margin:0;color:#1e293b;}</style></head><body><div style="text-align:center;"><h1>${name}</h1><p>LARP Pure Native Webview Runtime v2.0</p></div></body></html>`,
-          },
-        ],
+        files: submittedFiles,
       },
-      zipBase64: projectZipBuffer ? projectZipBuffer.toString('base64') : undefined,
+      zipBase64: undefined,
       permissions: Array.from(new Set([...permissions, 'android.permission.INTERNET', 'android.permission.VIBRATE'])),
     };
 
@@ -305,12 +334,7 @@ export async function POST(req: NextRequest) {
           token: accessToken,
           repoName,
           config,
-          processedFiles: files.length > 0 ? files : [
-            {
-              path: 'index.html',
-              content: `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${config.name}</title><style>body{font-family:sans-serif;background:${config.themeColor};display:flex;align-items:center;justify-content:center;height:100vh;margin:0;color:#1e293b;}</style></head><body><div style="text-align:center;"><h1>${config.name}</h1><p>LARP Pure Native Webview Runtime v2.0</p></div></body></html>`,
-            },
-          ],
+          processedFiles: submittedFiles,
           waitForCompletion: false,
         });
 
