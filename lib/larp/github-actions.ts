@@ -394,8 +394,8 @@ ${config.iconVariants.filter(v => v.id !== 'default' && !v.isDefault).map(v => `
       - name: Upload Build Artifacts (APK, Keystore)
         uses: actions/upload-artifact@v4
         with:
-  name: ${safeName}-release
-  path: build_output/*
+          name: ${safeName}-release
+          path: build_output/*
           retention-days: 30
 `;
 }
