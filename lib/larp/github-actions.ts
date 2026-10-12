@@ -135,11 +135,8 @@ jobs:
               <uses-feature android:name="android.hardware.camera" android:required="false" />
               <uses-feature android:name="android.hardware.telephony" android:required="false" />
 
-              <uses-permission android:name="android.permission.INTERNET" />
-              <uses-permission android:name="android.permission.VIBRATE" />
-              <uses-permission android:name="android.permission.CAMERA" />
-              <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-              ${config.keepAwake ? '<uses-permission android:name="android.permission.WAKE_LOCK" />' : ''}
+${config.permissions.map(permission => `              <uses-permission android:name="${permission}" />`).join('\n')}
+              ${config.keepAwake && !config.permissions.includes('android.permission.WAKE_LOCK') ? '<uses-permission android:name="android.permission.WAKE_LOCK" />' : ''}
 
               <application
                   android:label="${appName}"
