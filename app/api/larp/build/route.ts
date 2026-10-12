@@ -311,7 +311,18 @@ export async function POST(req: NextRequest) {
               content: `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${config.name}</title><style>body{font-family:sans-serif;background:${config.themeColor};display:flex;align-items:center;justify-content:center;height:100vh;margin:0;color:#1e293b;}</style></head><body><div style="text-align:center;"><h1>${config.name}</h1><p>LARP Pure Native Webview Runtime v2.0</p></div></body></html>`,
             },
           ],
+          waitForCompletion: false,
         });
+
+        const queuedBuildId = Buffer.from(JSON.stringify({ username, repo: repoName, runId: githubResult.runId })).toString('base64url');
+        return NextResponse.json({
+          success: true,
+          status: 'queued',
+          buildId: queuedBuildId,
+          name: config.name,
+          github: { runId: githubResult.runId, runUrl: githubResult.githubRunUrl, repoUrl: githubResult.githubRepoUrl },
+          statusUrl: `${baseUrl}/api/larp/status?id=${encodeURIComponent(queuedBuildId)}`,
+        }, { status: 202, headers: CORS_HEADERS });
       } catch (ghErr: any) {
         console.warn('[LARP Build API] GitHub CI bridge notice:', ghErr.message);
       }

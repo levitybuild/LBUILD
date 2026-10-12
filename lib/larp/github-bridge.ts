@@ -10,6 +10,7 @@ export interface GithubBridgeOptions {
   repoName?: string;
   config: LarpBuildConfig;
   processedFiles: { path: string; content: string; isBinary?: boolean }[];
+  waitForCompletion?: boolean;
 }
 
 export interface GithubBridgeResult {
@@ -165,6 +166,7 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
     }
 
     // 3. Dispatch workflow explicitly
+    const dispatchStartedAt = new Date().toISOString();
     logs.push(`[GitHub Bridge] Dispatching workflow via GitHub Actions API...`);
     const dispatchRes = await fetch(`https://api.github.com/repos/${username}/${repoName}/actions/workflows/larp-build.yml/dispatches`, {
       method: 'POST',
@@ -174,12 +176,39 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
 
     if (dispatchRes.status === 204) {
       logs.push(`[GitHub Bridge] Workflow dispatch acknowledged (HTTP 204).`);
+    } else {
+      const dispatchError = await dispatchRes.text();
+      throw new Error(`GitHub workflow dispatch failed (${dispatchRes.status}): ${dispatchError}`);
+    }
+
+    // Async mode returns only after identifying this dispatch's run. The status
+    // endpoint performs the artifact fetch later, so POST never blocks on CI.
+    if (options.waitForCompletion === false) {
+      for (let attempt = 1; attempt <= 15; attempt++) {
+        await new Promise(r => setTimeout(r, 1000));
+        const runsRes = await fetch(`https://api.github.com/repos/${username}/${repoName}/actions/runs?workflow_id=larp-build.yml&event=workflow_dispatch&per_page=20`, { headers });
+        if (!runsRes.ok) continue;
+        const runsData = await runsRes.json();
+        const run = runsData.workflow_runs?.find((candidate: any) => candidate.created_at >= dispatchStartedAt && candidate.head_branch === 'main');
+        if (run) {
+          return {
+            success: true,
+            apkFilename: expectedApkFilename,
+            downloadUrl: '',
+            githubRunUrl: run.html_url,
+            githubRepoUrl: repoUrl,
+            runId: run.id,
+            runConclusion: run.conclusion || 'in_progress',
+            logs: [...logs, `[GitHub Bridge] Async run identified: ${run.id}`],
+          };
+        }
+      }
+      throw new Error('GitHub accepted the workflow dispatch but did not expose its run yet');
     }
 
     // 4. Poll for the run created by this dispatch and wait for its real artifact.
     logs.push(`[GitHub Bridge] Monitoring GitHub Actions runner progress...`);
     const startTime = Date.now();
-    const dispatchStartedAt = new Date().toISOString();
     let completed = false;
 
     // GitHub-hosted Android builds can take several minutes. Never return a placeholder
