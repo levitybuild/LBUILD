@@ -730,20 +730,10 @@ public class MainActivity extends Activity {
     logs.push(`[Serverless Engine] Vercel serverless environment detected (aapt command not natively present in AWS Lambda).`);
     logs.push(`[Serverless Engine] Generating full native project bundle, manifest, multi-density mipmaps, and keystore.`);
 
-    // Check if pre-compiled template binary exists
-    const baselineApkPath = path.join(process.cwd(), 'public', 'downloads', 'lionel.apk');
-    if (fs.existsSync(baselineApkPath)) {
-      apkBuffer = fs.readFileSync(baselineApkPath);
-    } else {
-      apkBuffer = Buffer.from('LARP_STANDALONE_APK_BUNDLE');
-    }
-
-    const baselineAabPath = path.join(process.cwd(), 'public', 'downloads', 'lionel_app_production_playstore.aab');
-    if (fs.existsSync(baselineAabPath)) {
-      aabBuffer = fs.readFileSync(baselineAabPath);
-    } else {
-      aabBuffer = Buffer.from('LARP_STANDALONE_AAB_BUNDLE');
-    }
+    // GitHub Actions performs the real Android compilation in the hosted environment.
+    // Keep serverless output clearly non-downloadable until that artifact is returned.
+    apkBuffer = Buffer.from('LARP_SERVERLESS_APK_PENDING_GITHUB_ACTIONS');
+    aabBuffer = Buffer.from('LARP_SERVERLESS_AAB_PENDING_GITHUB_ACTIONS');
 
     const baselineKsPath = path.join(process.cwd(), 'public', 'downloads', 'larp_release.keystore');
     if (fs.existsSync(baselineKsPath)) {

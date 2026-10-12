@@ -345,10 +345,13 @@ export async function POST(req: NextRequest) {
     // buildId, so two apps with the same name can never receive the same download URL.
     const zipArtifact = buildResult.artifacts.find(a => a.id === 'release_zip');
     const apkArtifact = buildResult.artifacts.find(a => a.id === 'apk');
-    const zipBase64 = buildResult.zipBase64;
-    const apkBase64 = buildResult.apkBase64;
-    if (!zipBase64 || !apkBase64 || !zipArtifact || !apkArtifact) {
-      throw new Error('Build completed without the generated APK and release ZIP artifacts');
+    const githubApkBase64 = githubResult?.apkBase64;
+    const githubArtifactZipBase64 = githubResult?.artifactZipBase64;
+    const zipBase64 = githubArtifactZipBase64 || buildResult.zipBase64;
+    const apkBase64 = githubApkBase64 || buildResult.apkBase64;
+    const apkFilename = githubResult?.apkFilename || apkArtifact?.filename;
+    if (!zipBase64 || !apkBase64 || !zipArtifact || !apkArtifact || !apkFilename) {
+      throw new Error('Build completed without verified APK and release artifacts');
     }
 
     const blobPrefix = `larp/${buildResult.buildId}`;
@@ -358,7 +361,7 @@ export async function POST(req: NextRequest) {
         addRandomSuffix: false,
         contentType: 'application/zip',
       }),
-      put(`${blobPrefix}/${apkArtifact.filename}`, Buffer.from(apkBase64, 'base64'), {
+      put(`${blobPrefix}/${apkFilename}`, Buffer.from(apkBase64, 'base64'), {
         access: 'public',
         addRandomSuffix: false,
         contentType: 'application/vnd.android.package-archive',
@@ -421,9 +424,7 @@ export async function POST(req: NextRequest) {
               repoUrl: githubResult.repoUrl,
               runUrl: githubResult.runUrl,
               artifactId: githubResult.githubArtifactId,
-              downloadUrl: githubResult.downloadUrl
-                ? `${baseUrl}${githubResult.downloadUrl}`
-                : undefined,
+              downloadUrl: apkBlob.url,
             }
           : null,
         downloadGuide: {
