@@ -146,9 +146,7 @@ export async function buildLarpApp(config: LarpBuildConfig): Promise<LarpBuildRe
 
   // Generate Complete Play Store Release ZIP Bundle (All-in-one APK, AAB, Keystore, Manifest)
   const completeZip = new JSZip();
-  completeZip.file('lionel.apk', compileResult.apkBuffer);
   completeZip.file(compileResult.apkFilename, compileResult.apkBuffer);
-  completeZip.file('lionel.aab', compileResult.aabBuffer);
   completeZip.file(compileResult.aabFilename, compileResult.aabBuffer);
   completeZip.file('larp_release.keystore', compileResult.keystoreBuffer);
   completeZip.file(compileResult.keystoreFilename, compileResult.keystoreBuffer);
@@ -162,8 +160,8 @@ Version: ${config.version} (Version Code: ${config.versionCode})
 Timestamp: ${timestamp}
 
 ## Included Files in this ZIP:
-1. **lionel.apk** (or ${compileResult.apkFilename}) - Standalone Signed Production APK
-2. **lionel.aab** (or ${compileResult.aabFilename}) - Production Android App Bundle for Google Play Store
+1. **${compileResult.apkFilename}** - Standalone Signed Production APK
+2. **${compileResult.aabFilename}** - Production Android App Bundle for Google Play Store
 3. **larp_release.keystore** - RSA-2048 signing certificate & key (SHA-256: ${compileResult.sha256Fingerprint})
 4. **release_info.json** - Cryptographic credentials, key alias, and fingerprints
 5. **larp-bridge.js** - Native JavaScript runtime bridge
@@ -171,7 +169,7 @@ Timestamp: ${timestamp}
   );
 
   const completeZipBuffer = await completeZip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
-  const completeZipFilename = 'lionel_complete_release_bundle.zip';
+  const completeZipFilename = `${config.appId}_${buildId}_release_bundle.zip`;
   const bridgeFilename = 'larp-bridge.js';
 
   // Build Artifact List
@@ -184,15 +182,6 @@ Timestamp: ${timestamp}
       sizeBytes: completeZipBuffer.length,
       downloadUrl: `/api/larp/download?file=${completeZipFilename}`,
       description: 'All-in-one distribution bundle containing signed APK, Google Play AAB bundle, release keystore, and deployment guide.',
-    },
-    {
-      id: 'lionel_apk',
-      name: 'lionel.apk (GitHub Actions Release APK)',
-      filename: 'lionel.apk',
-      type: 'apk',
-      sizeBytes: compileResult.apkBuffer.length,
-      downloadUrl: `/api/larp/download?file=lionel.apk`,
-      description: 'Signed native Android APK compiled via GitHub Actions middleman pipeline.',
     },
     {
       id: 'apk',

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { put } from '@vercel/blob';
 import { LarpBuildConfig, IconVariant, SplashConfig } from '@/lib/larp/types';
 import { buildLarpApp } from '@/lib/larp/generator';
 import { runGithubActionsBuild } from '@/lib/larp/github-bridge';
@@ -326,7 +327,8 @@ export async function POST(req: NextRequest) {
 
     if (wantsDirectBinary && buildResult.zipBase64) {
       const binaryZipBuffer = Buffer.from(buildResult.zipBase64, 'base64');
-      const safeFilename = `${config.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}_complete_release_bundle.zip`;
+      const zipArtifact = buildResult.artifacts.find(a => a.id === 'release_zip');
+      const safeFilename = zipArtifact?.filename || `${buildResult.buildId}_release_bundle.zip`;
       return new NextResponse(binaryZipBuffer, {
         status: 200,
         headers: {
@@ -339,20 +341,39 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Standard JSON Response with direct Base64 & Data URI for instant client Blob creation
-    const zipFilename = 'lionel_complete_release_bundle.zip';
-    const directZipUrl = `${baseUrl}/downloads/${zipFilename}`;
-    const downloadZipUrl = `${baseUrl}/api/larp/download?file=${zipFilename}`;
-    const directApkUrl = `${baseUrl}/downloads/lionel.apk`;
-    const downloadApkUrl = `${baseUrl}/api/larp/download?file=lionel.apk`;
-    const directAabUrl = `${baseUrl}/downloads/lionel_app_production_playstore.aab`;
-    const downloadAabUrl = `${baseUrl}/api/larp/download?file=lionel_app_production_playstore.aab`;
-    const directKeystoreUrl = `${baseUrl}/downloads/larp_release.keystore`;
-    const downloadKeystoreUrl = `${baseUrl}/api/larp/download?file=larp_release.keystore`;
-
+    // Persist only the actual generated binaries in public Blob storage. The key includes
+    // buildId, so two apps with the same name can never receive the same download URL.
+    const zipArtifact = buildResult.artifacts.find(a => a.id === 'release_zip');
+    const apkArtifact = buildResult.artifacts.find(a => a.id === 'apk');
     const zipBase64 = buildResult.zipBase64;
     const apkBase64 = buildResult.apkBase64;
-    const dataUri = zipBase64 ? `data:application/zip;base64,${zipBase64}` : undefined;
+    if (!zipBase64 || !apkBase64 || !zipArtifact || !apkArtifact) {
+      throw new Error('Build completed without the generated APK and release ZIP artifacts');
+    }
+
+    const blobPrefix = `larp/${buildResult.buildId}`;
+    const [zipBlob, apkBlob] = await Promise.all([
+      put(`${blobPrefix}/${zipArtifact.filename}`, Buffer.from(zipBase64, 'base64'), {
+        access: 'public',
+        addRandomSuffix: false,
+        contentType: 'application/zip',
+      }),
+      put(`${blobPrefix}/${apkArtifact.filename}`, Buffer.from(apkBase64, 'base64'), {
+        access: 'public',
+        addRandomSuffix: false,
+        contentType: 'application/vnd.android.package-archive',
+      }),
+    ]);
+
+    const downloadZipUrl = zipBlob.url;
+    const downloadApkUrl = apkBlob.url;
+    const directZipUrl = zipBlob.url;
+    const directApkUrl = apkBlob.url;
+    const directAabUrl = undefined;
+    const downloadAabUrl = undefined;
+    const directKeystoreUrl = undefined;
+    const downloadKeystoreUrl = undefined;
+    const dataUri = undefined;
 
     return NextResponse.json(
       {
@@ -379,7 +400,8 @@ export async function POST(req: NextRequest) {
         dataUri,
         artifacts: buildResult.artifacts.map(a => ({
           ...a,
-          fullDownloadUrl: `${baseUrl}${a.downloadUrl}`,
+          fullDownloadUrl:
+            a.id === 'release_zip' ? zipBlob.url : a.id === 'apk' ? apkBlob.url : undefined,
         })),
         iconVariants: config.iconVariants.map(v => ({
           id: v.id,
@@ -405,15 +427,15 @@ export async function POST(req: NextRequest) {
             }
           : null,
         downloadGuide: {
-          summary: 'Use the refined download link, direct binary stream, or create an instant client-side Blob URL.',
+          summary: 'The generated APK and release ZIP are uploaded to unique public Vercel Blob URLs.',
           zipDownloadEndpoint: downloadZipUrl,
           apkDownloadEndpoint: downloadApkUrl,
           directBinaryEndpoint: `${baseUrl}/api/larp/build?format=zip`,
           corsSupport: 'Open (Access-Control-Allow-Origin: *)',
           howToGenerateDirectBlobUrl: [
-            '1. Call POST /api/larp/build?format=zip -> res.blob() -> URL.createObjectURL(blob)',
-            '2. Or from JSON: fetch(data.dataUri).then(r => r.blob()).then(b => URL.createObjectURL(b))',
-            '3. Works 100% reliably in-memory on Vercel without relying on server filesystem persistence!',
+            '1. Read zipDownloadEndpoint or apkDownloadEndpoint from the response.',
+            '2. Download the returned public Blob URL directly.',
+            '3. Each URL is scoped to the unique buildId and contains the actual generated filename.',
           ],
         },
       },
