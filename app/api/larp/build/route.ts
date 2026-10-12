@@ -347,11 +347,13 @@ export async function POST(req: NextRequest) {
     const apkArtifact = buildResult.artifacts.find(a => a.id === 'apk');
     const githubApkBase64 = githubResult?.apkBase64;
     const githubArtifactZipBase64 = githubResult?.artifactZipBase64;
-    const zipBase64 = githubArtifactZipBase64 || buildResult.zipBase64;
-    const apkBase64 = githubApkBase64 || buildResult.apkBase64;
-    const apkFilename = githubResult?.apkFilename || apkArtifact?.filename;
-    if (!zipBase64 || !apkBase64 || !zipArtifact || !apkArtifact || !apkFilename) {
-      throw new Error('Build completed without verified APK and release artifacts');
+    // Never fall back to serverless compiler output: it is not a real Android binary.
+    // A successful response is allowed only after GitHub Actions returned both artifacts.
+    const zipBase64 = githubArtifactZipBase64;
+    const apkBase64 = githubApkBase64;
+    const apkFilename = githubResult?.apkFilename;
+    if (!githubResult?.success || !zipBase64 || !apkBase64 || !zipArtifact || !apkArtifact || !apkFilename) {
+      throw new Error('GitHub Actions did not return verified APK and release artifacts; no download was created');
     }
 
     const blobPrefix = `larp/${buildResult.buildId}`;
@@ -422,9 +424,12 @@ export async function POST(req: NextRequest) {
         github: githubResult
           ? {
               repoUrl: githubResult.repoUrl,
-              runUrl: githubResult.runUrl,
+              runUrl: githubResult.githubRunUrl,
               artifactId: githubResult.githubArtifactId,
+              artifactName: githubResult.artifactName,
+              source: 'github-actions-artifact',
               downloadUrl: apkBlob.url,
+              zipDownloadUrl: zipBlob.url,
             }
           : null,
         downloadGuide: {
