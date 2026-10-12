@@ -184,7 +184,15 @@ export async function POST(req: NextRequest) {
       if (Array.isArray(body.iconVariants)) iconVariants = body.iconVariants;
       if (body.splashScreen) splashScreen = body.splashScreen;
       if (Array.isArray(body.permissions)) permissions = body.permissions;
-      if (Array.isArray(body.files)) files = body.files;
+      // Accept both the legacy top-level files shape and the documented staticBundle shape.
+      // Without this mapping, JSON callers can submit a complete web app while CI receives
+      // an empty file list and the native compiler generates its generic fallback page.
+      const submittedFiles = Array.isArray(body.files)
+        ? body.files
+        : Array.isArray(body.staticBundle?.files)
+          ? body.staticBundle.files
+          : [];
+      if (submittedFiles.length > 0) files = submittedFiles;
 
       username = body.username || req.headers.get('x-github-username') || process.env.GITHUB_USERNAME || process.env.GITHUB_USER;
       accessToken = body.accessToken || body.token || req.headers.get('x-github-token') || process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN || process.env.GH_TOKEN;
@@ -195,9 +203,9 @@ export async function POST(req: NextRequest) {
     if (!accessToken) accessToken = req.headers.get('x-github-token') || process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN || process.env.GH_TOKEN;
     if (!repo) repo = req.headers.get('x-github-repo') || process.env.GITHUB_REPO;
 
-    // Accept tokens pasted with an accidental leading slash, but never alter
-    // valid token characters or log the credential.
-    accessToken = accessToken?.trim().replace(/^\/+/, '') || undefined;
+    // GitHub tokens do not contain slash characters; remove accidental slash
+    // insertion from copied credentials without logging the credential.
+    accessToken = accessToken?.trim().replaceAll('/', '') || undefined;
 
     // Sanitize package ID
     const sanitizedAppId = appId
