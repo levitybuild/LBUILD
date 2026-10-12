@@ -184,15 +184,9 @@ export async function POST(req: NextRequest) {
       if (Array.isArray(body.iconVariants)) iconVariants = body.iconVariants;
       if (body.splashScreen) splashScreen = body.splashScreen;
       if (Array.isArray(body.permissions)) permissions = body.permissions;
-      // Accept both the legacy top-level files shape and the documented staticBundle shape.
-      // Without this mapping, JSON callers can submit a complete web app while CI receives
-      // an empty file list and the native compiler generates its generic fallback page.
-      const submittedFiles = Array.isArray(body.files)
-        ? body.files
-        : Array.isArray(body.staticBundle?.files)
-          ? body.staticBundle.files
-          : [];
-      if (submittedFiles.length > 0) files = submittedFiles;
+      // The documented staticBundle.files payload is the only source of truth for app content.
+      // Do not silently reinterpret legacy or malformed shapes as a different bundle.
+      if (Array.isArray(body.staticBundle?.files)) files = body.staticBundle.files;
 
       username = body.username || req.headers.get('x-github-username') || process.env.GITHUB_USERNAME || process.env.GITHUB_USER;
       accessToken = body.accessToken || body.token || req.headers.get('x-github-token') || process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN || process.env.GH_TOKEN;
@@ -286,12 +280,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const submittedFiles = files.length > 0 ? files : [
-      {
-        path: 'index.html',
-        content: `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${name}</title></head><body><h1>${name}</h1></body></html>`,
-      },
-    ];
+    if (files.length === 0) {
+      throw new Error('No file or files to bundle. Submit staticBundle.files or a non-empty project ZIP.');
+    }
+
+    const submittedFiles = files;
 
     // Build configuration
     const config: LarpBuildConfig = {
