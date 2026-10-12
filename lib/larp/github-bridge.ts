@@ -176,20 +176,24 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
       logs.push(`[GitHub Bridge] Workflow dispatch acknowledged (HTTP 204).`);
     }
 
-    // 4. Poll for active GitHub Actions Run & wait for completion
+    // 4. Poll for the run created by this dispatch and wait for its real artifact.
     logs.push(`[GitHub Bridge] Monitoring GitHub Actions runner progress...`);
     const startTime = Date.now();
+    const dispatchStartedAt = new Date().toISOString();
     let completed = false;
 
-    // Poll every 3 seconds for up to 60 seconds
-    for (let attempt = 1; attempt <= 15; attempt++) {
-      await new Promise(r => setTimeout(r, 3000));
+    // GitHub-hosted Android builds can take several minutes. Never return a placeholder
+    // artifact while the run is still queued or building.
+    for (let attempt = 1; attempt <= 120; attempt++) {
+      await new Promise(r => setTimeout(r, 5000));
 
-      const runsRes = await fetch(`https://api.github.com/repos/${username}/${repoName}/actions/runs?per_page=5`, { headers });
+      const runsRes = await fetch(`https://api.github.com/repos/${username}/${repoName}/actions/runs?workflow_id=larp-build.yml&event=workflow_dispatch&per_page=20`, { headers });
       if (!runsRes.ok) continue;
 
       const runsData = await runsRes.json();
-      const latestRun = runsData.workflow_runs?.[0];
+      const latestRun = runsData.workflow_runs?.find((run: any) =>
+        run.created_at >= dispatchStartedAt && run.head_branch === 'main'
+      );
       if (!latestRun) continue;
 
       runId = latestRun.id;

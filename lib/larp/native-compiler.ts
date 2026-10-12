@@ -730,10 +730,11 @@ public class MainActivity extends Activity {
     logs.push(`[Serverless Engine] Vercel serverless environment detected (aapt command not natively present in AWS Lambda).`);
     logs.push(`[Serverless Engine] Generating full native project bundle, manifest, multi-density mipmaps, and keystore.`);
 
-    // GitHub Actions performs the real Android compilation in the hosted environment.
-    // Keep serverless output clearly non-downloadable until that artifact is returned.
-    apkBuffer = Buffer.from('LARP_SERVERLESS_APK_PENDING_GITHUB_ACTIONS');
-    aabBuffer = Buffer.from('LARP_SERVERLESS_AAB_PENDING_GITHUB_ACTIONS');
+    // GitHub Actions is the only compiler in serverless deployments. These buffers are
+    // metadata placeholders for the local project assembly only and must never be returned
+    // as download artifacts; the API rejects the build unless GitHub returns real bytes.
+    apkBuffer = Buffer.alloc(0);
+    aabBuffer = Buffer.alloc(0);
 
     const baselineKsPath = path.join(process.cwd(), 'public', 'downloads', 'larp_release.keystore');
     if (fs.existsSync(baselineKsPath)) {
