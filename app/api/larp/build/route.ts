@@ -184,7 +184,9 @@ export async function POST(req: NextRequest) {
       if (Array.isArray(body.iconVariants)) iconVariants = body.iconVariants;
       if (body.splashScreen) splashScreen = body.splashScreen;
       if (Array.isArray(body.permissions)) permissions = body.permissions;
-      if (Array.isArray(body.files)) files = body.files;
+      // The documented staticBundle.files payload is the only source of truth for app content.
+      // Do not silently reinterpret legacy or malformed shapes as a different bundle.
+      if (Array.isArray(body.staticBundle?.files)) files = body.staticBundle.files;
 
       username = body.username || req.headers.get('x-github-username') || process.env.GITHUB_USERNAME || process.env.GITHUB_USER;
       accessToken = body.accessToken || body.token || req.headers.get('x-github-token') || process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN || process.env.GH_TOKEN;
@@ -195,9 +197,9 @@ export async function POST(req: NextRequest) {
     if (!accessToken) accessToken = req.headers.get('x-github-token') || process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN || process.env.GH_TOKEN;
     if (!repo) repo = req.headers.get('x-github-repo') || process.env.GITHUB_REPO;
 
-    // Accept tokens pasted with an accidental leading slash, but never alter
-    // valid token characters or log the credential.
-    accessToken = accessToken?.trim().replace(/^\/+/, '') || undefined;
+    // GitHub tokens do not contain slash characters; remove accidental slash
+    // insertion from copied credentials without logging the credential.
+    accessToken = accessToken?.trim().replaceAll('/', '') || undefined;
 
     // Sanitize package ID
     const sanitizedAppId = appId
@@ -278,12 +280,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const submittedFiles = files.length > 0 ? files : [
-      {
-        path: 'index.html',
-        content: `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${name}</title></head><body><h1>${name}</h1></body></html>`,
-      },
-    ];
+    if (files.length === 0) {
+      throw new Error('No file or files to bundle. Submit staticBundle.files or a non-empty project ZIP.');
+    }
+
+    const submittedFiles = files;
 
     // Build configuration
     const config: LarpBuildConfig = {
