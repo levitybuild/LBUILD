@@ -23,6 +23,9 @@ export interface GithubBridgeResult {
   logs: string[];
   runId?: number;
   runConclusion?: string;
+  apkBase64?: string;
+  artifactZipBase64?: string;
+  artifactName?: string;
 }
 
 export async function runGithubActionsBuild(options: GithubBridgeOptions): Promise<GithubBridgeResult> {
@@ -30,7 +33,8 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
   const rawRepo = options.repoName || config.repo || config.repoId || config.repoName;
   const repoName = (rawRepo && rawRepo.trim().length > 0) ? rawRepo.trim() : 'larp-android-app-v6';
   const logs: string[] = [];
-  const apkFilename = 'lionel.apk';
+  const safeAppName = config.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'larp_app';
+  const expectedApkFilename = `${safeAppName}_signed_release.apk`;
 
   const headers = {
     'Authorization': `Bearer ${token}`,
@@ -47,6 +51,7 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
   let runConclusion: string | undefined;
   let githubArtifactId: number | undefined;
   let githubArtifactSize: number | undefined;
+  let optionsResult: Partial<Pick<GithubBridgeResult, 'apkFilename' | 'apkBase64' | 'artifactZipBase64' | 'artifactName'>> = {};
 
   try {
     // 1. Ensure repository exists
@@ -205,7 +210,7 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
           const artRes = await fetch(`https://api.github.com/repos/${username}/${repoName}/actions/runs/${runId}/artifacts`, { headers });
           if (artRes.ok) {
             const artData = await artRes.json();
-            const releaseArtifact = artData.artifacts?.find((a: any) => a.name.includes('release') || a.name.includes('lionel')) || artData.artifacts?.[0];
+            const releaseArtifact = artData.artifacts?.find((a: any) => a.name.includes('release')) || artData.artifacts?.[0];
 
             if (releaseArtifact) {
               githubArtifactId = releaseArtifact.id;
@@ -221,11 +226,14 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
                 logs.push(`[GitHub Bridge Middleman] Downloaded ${zipBuffer.length} bytes from GitHub.`);
 
                 const zip = await JSZip.loadAsync(zipBuffer);
-                const lionelApkFile = zip.file('lionel.apk') || zip.file(Object.keys(zip.files).find(k => k.endsWith('.apk')) || '');
+                const apkPath = Object.keys(zip.files).find((path) => path.toLowerCase().endsWith('.apk'));
+                const apkFile = apkPath ? zip.file(apkPath) : undefined;
 
-                if (lionelApkFile) {
-                  const apkBytes = await lionelApkFile.async('nodebuffer');
-                  logs.push(`[GitHub Bridge Success] Verified genuine GitHub-built "${apkFilename}" (${apkBytes.length} bytes) in memory; no server filesystem write performed.`);
+                if (apkFile && apkPath) {
+                  const apkBytes = await apkFile.async('nodebuffer');
+                  const actualApkFilename = apkPath.split('/').pop() || expectedApkFilename;
+                  optionsResult = { apkFilename: actualApkFilename, apkBase64: apkBytes.toString('base64'), artifactZipBase64: zipBuffer.toString('base64'), artifactName: releaseArtifact.name };
+                  logs.push(`[GitHub Bridge Success] Verified genuine GitHub-built "${actualApkFilename}" (${apkBytes.length} bytes) in memory; no server filesystem write performed.`);
                 }
 
                 const keystoreFile = zip.file('larp_release.keystore');
@@ -248,12 +256,15 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
     logs.push(`[GitHub Actions Bridge Error] ${ghErr.message}`);
   }
 
-  logs.push(`[LARP API Ready] Final download link verified: /downloads/${apkFilename}`);
+  const resolvedApkFilename = optionsResult.apkFilename;
+  logs.push(resolvedApkFilename
+    ? `[LARP API Ready] GitHub Actions artifact verified: ${resolvedApkFilename}`
+    : '[LARP API Notice] GitHub Actions did not return a completed APK artifact.');
 
   return {
-    success: true,
-    apkFilename,
-    downloadUrl: `/downloads/${apkFilename}`,
+    success: Boolean(optionsResult.apkBase64),
+    apkFilename: resolvedApkFilename || expectedApkFilename,
+    downloadUrl: '',
     githubRunUrl: runUrl || `https://github.com/${username}/${repoName}/actions`,
     githubRepoUrl: repoUrl,
     githubArtifactId,
@@ -261,5 +272,8 @@ export async function runGithubActionsBuild(options: GithubBridgeOptions): Promi
     runConclusion: runConclusion || 'in_progress',
     logs,
     runId,
+    apkBase64: optionsResult.apkBase64,
+    artifactZipBase64: optionsResult.artifactZipBase64,
+    artifactName: optionsResult.artifactName,
   };
 }
